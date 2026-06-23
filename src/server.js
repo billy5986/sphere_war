@@ -4,7 +4,8 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http, { cors: { origin: "*" } });
 
 // 資料結構：儲存多個房間的狀態
-// rooms[roomId] = { players: {}, pellets: [], usedColors: [] }
+// 加入 usedNames 用於追蹤名稱是否重複
+// rooms[roomId] = { players: {}, pellets: [], usedColors: [], usedNames: [] }
 let rooms = {};
 const MAX_PELLETS = 50;
 const WORLD_SIZE = 800; // 地圖範圍 -800 到 800
@@ -30,7 +31,8 @@ io.on('connection', (socket) => {
     // 1. 創建房間
     socket.on('create_room', () => {
         const roomId = generateRoomCode();
-        rooms[roomId] = { players: {}, pellets: [], usedColors: [] };
+        // 初始化房間時，加入 usedNames: []
+        rooms[roomId] = { players: {}, pellets: [], usedColors: [], usedNames: [] };
         
         // 初始生成光點
         for (let i = 0; i < MAX_PELLETS; i++) {
@@ -54,18 +56,28 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 3. 選擇顏色並進入戰場
+    // 3. 選擇顏色、名稱並進入戰場
     socket.on('join_game', (data) => {
         const roomId = data.roomId;
         const color = data.color;
+        const name = data.name || '無名氏'; // 取得名稱，若無則給預設值
 
         if (!rooms[roomId]) return socket.emit('color_error', '房間已不存在');
+        
+        // 檢查顏色是否重複
         if (rooms[roomId].usedColors.includes(color)) {
             return socket.emit('color_error', '這個顏色已經被選走了，請換一個！');
         }
+        
+        // 檢查名稱是否重複
+        if (rooms[roomId].usedNames.includes(name)) {
+            return socket.emit('name_error', '這個名稱已經有人使用了，請換一個！');
+        }
 
-        // 註冊玩家顏色與初始狀態 (3D 座標, 包含 y 軸和垂直速度 vy)
+        // 註冊玩家顏色、名稱與初始狀態 (3D 座標, 包含 y 軸和垂直速度 vy)
         rooms[roomId].usedColors.push(color);
+        rooms[roomId].usedNames.push(name); // 記錄已被使用的名稱
+        
         rooms[roomId].players[socket.id] = {
             x: (Math.random() - 0.5) * 500,
             y: 20, // 初始高度
@@ -73,11 +85,12 @@ io.on('connection', (socket) => {
             vy: 0, // 垂直速度 (重力用)
             radius: 20,
             color: color,
+            name: name, // 將名稱存入玩家物件，這樣遊戲迴圈廣播時前端才收得到
             input: { dx: 0, dz: 0, jump: false } // 存放客戶端傳來的意圖
         };
 
         socket.emit('game_started');
-        console.log(`玩家 ${socket.id} 加入房間 ${roomId} (顏色: ${color})`);
+        console.log(`玩家 ${socket.id} 加入房間 ${roomId} (名稱: ${name}, 顏色: ${color})`);
     });
 
     // 4. 接收玩家操作 (僅更新意圖，交由遊戲迴圈結算)
@@ -94,8 +107,9 @@ io.on('connection', (socket) => {
             const player = room.players[socket.id];
             
             if (player) {
-                // 釋放顏色
+                // 同時釋放顏色與名稱，讓其他玩家可以使用
                 room.usedColors = room.usedColors.filter(c => c !== player.color);
+                room.usedNames = room.usedNames.filter(n => n !== player.name);
                 delete room.players[socket.id];
             }
 
@@ -131,7 +145,7 @@ setInterval(() => {
 
             // 地板碰撞 (y = 0 是地面，球體的底部不能穿過地面)
             let isGrounded = false;
-            // 【修改點1】必須在場地範圍內 (WORLD_SIZE) 才會有地板擋住，超過範圍球就會繼續往下掉
+            // 必須在場地範圍內 (WORLD_SIZE) 才會有地板擋住，超過範圍球就會繼續往下掉
             if (Math.abs(p.x) <= WORLD_SIZE && Math.abs(p.z) <= WORLD_SIZE) {
                 if (p.y <= p.radius) {
                     p.y = p.radius; // 卡在地表
@@ -215,7 +229,7 @@ setInterval(() => {
         // 4. 邊界檢查與重生 
         for (let id in players) {
             let p = players[id];
-            // 【修改點2】球的中心點 (p.y) 加上半徑 (p.radius) 小於 0，代表整顆球都掉到地板底下了
+            // 球的中心點 (p.y) 加上半徑 (p.radius) 小於 0，代表整顆球都掉到地板底下了
             if (p.y + p.radius < 0) {
                 io.to(id).emit('you_lost', '你掉入虛空了！復活中...');
                 
@@ -228,7 +242,7 @@ setInterval(() => {
             }
         }
 
-        // 4. 只廣播給該房間的玩家
+        // 5. 廣播給該房間的所有玩家 (此時 players 物件裡已經包含了玩家的 name)
         io.to(roomId).emit('update_game_state', { players, pellets });
     }
 }, 30);
