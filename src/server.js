@@ -161,7 +161,7 @@ setInterval(() => {
             }
         }
 
-        // 3. 判定：大球撞小球 (推力取代直接吃掉)
+        // 3. 玩家間的碰撞判定 (解決互相穿透、吸住的問題)
         let playerIds = Object.keys(players);
         for (let i = 0; i < playerIds.length; i++) {
             for (let j = i + 1; j < playerIds.length; j++) {
@@ -169,22 +169,49 @@ setInterval(() => {
                 let p2 = players[playerIds[j]];
                 if (!p1 || !p2) continue;
 
-                let dist = Math.hypot(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z);
-                if (dist < p1.radius + p2.radius) {
-                    let angle = Math.atan2(p1.z - p2.z, p1.x - p2.x);
-                    let force = 30; // 撞擊力道
+                // 計算 3D 空間中的距離
+                let dx = p1.x - p2.x;
+                let dy = p1.y - p2.y;
+                let dz = p1.z - p2.z;
+                let dist = Math.hypot(dx, dy, dz);
+                let minDist = p1.radius + p2.radius;
+
+                // 如果距離小於兩者半徑之和，代表發生碰撞（重疊了）
+                if (dist < minDist && dist > 0) {
+                    // 1. 計算重疊的深度
+                    let overlap = minDist - dist;
+
+                    // 2. 取得推開彼此的「單位向量」(由 p2 指向 p1)
+                    let nx = dx / dist;
+                    let ny = dy / dist;
+                    let nz = dz / dist;
+
+                    // 3. 強制分離：把兩顆球往反方向推開，一人退一半，保證絕對不會穿透
+                    p1.x += nx * (overlap / 2);
+                    p1.y += ny * (overlap / 2);
+                    p1.z += nz * (overlap / 2);
                     
+                    p2.x -= nx * (overlap / 2);
+                    p2.y -= ny * (overlap / 2);
+                    p2.z -= nz * (overlap / 2);
+
+                    // 4. 大球撞小球的額外擊退效果 (Force)
+                    let knockbackForce = 15; 
                     if (p1.radius > p2.radius * 1.1) {
-                        p2.x += Math.cos(angle) * force;
-                        p2.z += Math.sin(angle) * force;
+                        // p1 大於 p2，將 p2 額外往後彈飛
+                        p2.x -= nx * knockbackForce;
+                        p2.z -= nz * knockbackForce;
+                        p2.vy = 8; // 給小球一點往上的彈飛力道，效果更好
                     } else if (p2.radius > p1.radius * 1.1) {
-                        p1.x -= Math.cos(angle) * force;
-                        p1.z -= Math.sin(angle) * force;
+                        // p2 大於 p1，將 p1 額外往後彈飛
+                        p1.x += nx * knockbackForce;
+                        p1.z += nz * knockbackForce;
+                        p1.vy = 8;
                     }
                 }
             }
         }
-
+        
         // 4. 邊界檢查與重生 
         for (let id in players) {
             let p = players[id];
