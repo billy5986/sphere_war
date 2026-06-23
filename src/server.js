@@ -4,7 +4,6 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http, { cors: { origin: "*" } });
 
 // 資料結構：儲存多個房間的狀態
-// 加入 usedNames 用於追蹤名稱是否重複
 // rooms[roomId] = { players: {}, pellets: [], usedColors: [], usedNames: [] }
 let rooms = {};
 const MAX_PELLETS = 50;
@@ -31,7 +30,6 @@ io.on('connection', (socket) => {
     // 1. 創建房間
     socket.on('create_room', () => {
         const roomId = generateRoomCode();
-        // 初始化房間時，加入 usedNames: []
         rooms[roomId] = { players: {}, pellets: [], usedColors: [], usedNames: [] };
         
         // 初始生成光點
@@ -104,7 +102,7 @@ io.on('connection', (socket) => {
             radius: 20,
             color: color,
             name: name, // 將名稱存入玩家物件，這樣遊戲迴圈廣播時前端才收得到
-            input: { dx: 0, dz: 0, jump: false } // 存放客戶端傳來的意圖
+            input: { dx: 0, dz: 0, jump: false, dash: false } // 存放客戶端傳來的意圖，新增 dash
         };
 
         socket.emit('game_started');
@@ -148,12 +146,23 @@ setInterval(() => {
         let players = room.players;
         let pellets = room.pellets;
 
-        // 1. 玩家移動與物理 (重力與跳躍)
+        // 1. 玩家移動與物理 (重力與跳躍、衝刺)
         for (let id in players) {
             let p = players[id];
             let input = p.input;
 
-            let speed = Math.max(2, 6 - (p.radius - 20) * 0.1); 
+            // 判斷是否正在衝刺（必須擁有大於 20.5 的體積才能衝刺）
+            let isDashing = input.dash && p.radius > 20.5;
+
+            // 刪除體型變慢設定：統一基礎速度 7，衝刺時速度提升為 14
+            let speed = isDashing ? 14 : 7;
+
+            // 衝刺消耗體積/能量
+            if (isDashing) {
+                p.radius -= 0.05;
+                if (p.radius < 20) p.radius = 20; // 保護底線半徑不低於20
+            }
+
             p.x += input.dx * speed;
             p.z += input.dz * speed;
 
@@ -172,7 +181,7 @@ setInterval(() => {
                 }
             }
 
-            // 跳躍判定
+            // 跳躍判定（只能在地板上跳躍）
             if (input.jump && isGrounded) {
                 p.vy = 25; 
                 input.jump = false; 
@@ -193,7 +202,7 @@ setInterval(() => {
             }
         }
 
-        // 3. 玩家間的碰撞判定 (解決互相穿透、吸住的問題)
+        // 3. 玩家間的碰撞判定 (解決互相穿透、吸住與禁止互相踩踏跳躍的問題)
         let playerIds = Object.keys(players);
         for (let i = 0; i < playerIds.length; i++) {
             for (let j = i + 1; j < playerIds.length; j++) {
@@ -210,35 +219,38 @@ setInterval(() => {
 
                 // 如果距離小於兩者半徑之和，代表發生碰撞（重疊了）
                 if (dist < minDist && dist > 0) {
-                    // 1. 計算重疊的深度
                     let overlap = minDist - dist;
 
-                    // 2. 取得推開彼此的「單位向量」(由 p2 指向 p1)
-                    let nx = dx / dist;
-                    let ny = dy / dist;
-                    let nz = dz / dist;
+                    // 限制排擠只在 X 和 Z 軸 (水平面) 上進行
+                    // 這樣一來球體不會進行垂直 y 軸的強制分開推移，進而確保球體之間無法互相踩踏站立
+                    let hDist = Math.hypot(dx, dz);
+                    let hnx = hDist > 0 ? dx / hDist : 1;
+                    let hnz = hDist > 0 ? dz / hDist : 0;
 
-                    // 3. 強制分離：把兩顆球往反方向推開，一人退一半，保證絕對不會穿透
-                    p1.x += nx * (overlap / 2);
-                    p1.y += ny * (overlap / 2);
-                    p1.z += nz * (overlap / 2);
+                    // 強制分離（僅水平推進分開）
+                    p1.x += hnx * (overlap / 2);
+                    p1.z += hnz * (overlap / 2);
                     
-                    p2.x -= nx * (overlap / 2);
-                    p2.y -= ny * (overlap / 2);
-                    p2.z -= nz * (overlap / 2);
+                    p2.x -= hnx * (overlap / 2);
+                    p2.z -= hnz * (overlap / 2);
 
-                    // 4. 大球撞小球的額外擊退效果 (Force)
-                    let knockbackForce = 15; 
+                    // 4. 大球撞小球的額外擊退效果 (已放大 3 倍，基礎撞擊力度 45)
+                    let knockbackForce = 45; 
+                    let p1Dashing = p1.input.dash && p1.radius > 20;
+                    let p2Dashing = p2.input.dash && p2.radius > 20;
+
                     if (p1.radius > p2.radius * 1.1) {
-                        // p1 大於 p2，將 p2 額外往後彈飛
-                        p2.x -= nx * knockbackForce;
-                        p2.z -= nz * knockbackForce;
-                        p2.vy = 8; // 給小球一點往上的彈飛力道，效果更好
+                        // p1 大於 p2，將 p2 額外往後彈飛 (若衝刺中則力道放大 1.5 倍)
+                        let force = p1Dashing ? knockbackForce * 1.5 : knockbackForce;
+                        p2.x -= hnx * force;
+                        p2.z -= hnz * force;
+                        p2.vy = 15; // 給予被撞小球垂直向上的飛空力道
                     } else if (p2.radius > p1.radius * 1.1) {
-                        // p2 大於 p1，將 p1 額外往後彈飛
-                        p1.x += nx * knockbackForce;
-                        p1.z += nz * knockbackForce;
-                        p1.vy = 8;
+                        // p2 大於 p1，將 p1 額外往後彈飛 (若衝刺中則力道放大 1.5 倍)
+                        let force = p2Dashing ? knockbackForce * 1.5 : knockbackForce;
+                        p1.x += hnx * force;
+                        p1.z += hnz * force;
+                        p1.vy = 15;
                     }
                 }
             }
