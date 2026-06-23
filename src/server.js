@@ -3,89 +3,207 @@ const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http, { cors: { origin: "*" } });
 
-let players = {};
-let pellets = [];
+// 資料結構：儲存多個房間的狀態
+// rooms[roomId] = { players: {}, pellets: [], usedColors: [] }
+let rooms = {};
 const MAX_PELLETS = 50;
+const WORLD_SIZE = 800; // 地圖範圍 -800 到 800
 
-// 初始化產生光點
-function spawnPellet() {
-    return { x: Math.random() * 800, y: Math.random() * 600 };
+// 產生隨機房間代碼
+function generateRoomCode() {
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
-for (let i = 0; i < MAX_PELLETS; i++) pellets.push(spawnPellet());
+
+// 在 3D 空間產生光點
+function spawnPellet() {
+    return { 
+        x: (Math.random() - 0.5) * WORLD_SIZE * 2, 
+        y: 4, // 光點貼在地上 (假設光點半徑為4)
+        z: (Math.random() - 0.5) * WORLD_SIZE * 2 
+    };
+}
 
 io.on('connection', (socket) => {
-    console.log('新玩家加入:', socket.id);
-    
-    // 初始化玩家狀態：加入 radius 屬性
-    players[socket.id] = { 
-        x: Math.random() * 800, 
-        y: Math.random() * 600, 
-        radius: 20,
-        color: '#' + Math.floor(Math.random()*16777215).toString(16) 
-    };
+    console.log('新玩家連線:', socket.id);
+    let currentRoom = null;
 
-    // 接收玩家移動指令 (僅更新座標，不立即廣播)
-    socket.on('player_move', (data) => {
-        let p = players[socket.id];
-        if (!p) return;
-
-        // 速度計算：越大的球速度越慢，最低保底速度為 1.5
-        let speed = Math.max(1.5, 5 - (p.radius - 20) * 0.1); 
+    // 1. 創建房間
+    socket.on('create_room', () => {
+        const roomId = generateRoomCode();
+        rooms[roomId] = { players: {}, pellets: [], usedColors: [] };
         
-        p.x += data.dx * speed;
-        p.y += data.dy * speed;
+        // 初始生成光點
+        for (let i = 0; i < MAX_PELLETS; i++) {
+            rooms[roomId].pellets.push(spawnPellet());
+        }
+
+        socket.join(roomId);
+        currentRoom = roomId;
+        socket.emit('room_joined', roomId);
     });
 
+    // 2. 加入房間
+    socket.on('join_room', (roomId) => {
+        roomId = roomId.toUpperCase();
+        if (rooms[roomId]) {
+            socket.join(roomId);
+            currentRoom = roomId;
+            socket.emit('room_joined', roomId);
+        } else {
+            socket.emit('room_error', '找不到該房間！');
+        }
+    });
+
+    // 3. 選擇顏色並進入戰場
+    socket.on('join_game', (data) => {
+        const roomId = data.roomId;
+        const color = data.color;
+
+        if (!rooms[roomId]) return socket.emit('color_error', '房間已不存在');
+        if (rooms[roomId].usedColors.includes(color)) {
+            return socket.emit('color_error', '這個顏色已經被選走了，請換一個！');
+        }
+
+        // 註冊玩家顏色與初始狀態 (3D 座標, 包含 y 軸和垂直速度 vy)
+        rooms[roomId].usedColors.push(color);
+        rooms[roomId].players[socket.id] = {
+            x: (Math.random() - 0.5) * 500,
+            y: 20, // 初始高度
+            z: (Math.random() - 0.5) * 500,
+            vy: 0, // 垂直速度 (重力用)
+            radius: 20,
+            color: color,
+            input: { dx: 0, dz: 0, jump: false } // 存放客戶端傳來的意圖
+        };
+
+        socket.emit('game_started');
+        console.log(`玩家 ${socket.id} 加入房間 ${roomId} (顏色: ${color})`);
+    });
+
+    // 4. 接收玩家操作 (僅更新意圖，交由遊戲迴圈結算)
+    socket.on('player_input', (input) => {
+        if (currentRoom && rooms[currentRoom] && rooms[currentRoom].players[socket.id]) {
+            rooms[currentRoom].players[socket.id].input = input;
+        }
+    });
+
+    // 5. 斷線清理
     socket.on('disconnect', () => {
-        delete players[socket.id];
+        if (currentRoom && rooms[currentRoom]) {
+            const room = rooms[currentRoom];
+            const player = room.players[socket.id];
+            
+            if (player) {
+                // 釋放顏色
+                room.usedColors = room.usedColors.filter(c => c !== player.color);
+                delete room.players[socket.id];
+            }
+
+            // 如果房間空了，自動銷毀房間節省資源
+            if (Object.keys(room.players).length === 0) {
+                delete rooms[currentRoom];
+                console.log(`房間 ${currentRoom} 已銷毀`);
+            }
+        }
         console.log('玩家離線:', socket.id);
     });
 });
 
-// 伺服器遊戲迴圈：每 30 毫秒執行一次統一結算 (約 33 FPS)
+// --- 伺服器核心遊戲迴圈 (30ms) ---
 setInterval(() => {
-    // 1. 判定：玩家吃光點
-    for (let id in players) {
-        let p = players[id];
-        for (let i = pellets.length - 1; i >= 0; i--) {
-            let dist = Math.hypot(p.x - pellets[i].x, p.y - pellets[i].y);
-            // 距離小於半徑即判定吃到
-            if (dist < p.radius) {
-                pellets.splice(i, 1);       // 移除光點
-                p.radius += 1;              // 增加體積
-                pellets.push(spawnPellet());// 隨機補充新光點
+    for (let roomId in rooms) {
+        let room = rooms[roomId];
+        let players = room.players;
+        let pellets = room.pellets;
+
+        // 1. 玩家移動與物理 (重力與跳躍)
+        for (let id in players) {
+            let p = players[id];
+            let input = p.input;
+
+            // 水平移動：越大走越慢
+            let speed = Math.max(2, 6 - (p.radius - 20) * 0.1); 
+            p.x += input.dx * speed;
+            p.z += input.dz * speed;
+
+            // 地圖邊界限制
+            p.x = Math.max(-WORLD_SIZE, Math.min(WORLD_SIZE, p.x));
+            p.z = Math.max(-WORLD_SIZE, Math.min(WORLD_SIZE, p.z));
+
+            // Y 軸物理：重力
+            p.vy -= 1.5; // 重力加速度
+            p.y += p.vy;
+
+            // 地板碰撞 (y = 0 是地面，球體的底部不能穿過地面)
+            let isGrounded = false;
+            if (p.y <= p.radius) {
+                p.y = p.radius; // 卡在地表
+                p.vy = 0;
+                isGrounded = true;
+            }
+
+            // 跳躍判定
+            if (input.jump && isGrounded) {
+                p.vy = 25; // 給予向上的速度
+                input.jump = false; // 消耗掉跳躍指令
             }
         }
-    }
 
-    // 2. 判定：玩家大吃小
-    let playerIds = Object.keys(players);
-    for (let i = 0; i < playerIds.length; i++) {
-        for (let j = i + 1; j < playerIds.length; j++) {
-            let p1 = players[playerIds[i]];
-            let p2 = players[playerIds[j]];
-            if (!p1 || !p2) continue;
-
-            let dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-            // 發生碰撞
-            if (dist < p1.radius + p2.radius) {
-                // 體積需大於對方 20% 才能吞噬
-                if (p1.radius > p2.radius * 1.2) {
-                    p1.radius += p2.radius * 0.5;
-                    io.to(playerIds[j]).emit('you_lost', '你被吃掉了！');
-                    delete players[playerIds[j]];
-                } else if (p2.radius > p1.radius * 1.2) {
-                    p2.radius += p1.radius * 0.5;
-                    io.to(playerIds[i]).emit('you_lost', '你被吃掉了！');
-                    delete players[playerIds[i]];
+        // 2. 判定：玩家吃光點 (3D 距離判斷)
+        for (let id in players) {
+            let p = players[id];
+            for (let i = pellets.length - 1; i >= 0; i--) {
+                // 3D 空間距離公式
+                let dist = Math.hypot(p.x - pellets[i].x, p.y - pellets[i].y, p.z - pellets[i].z);
+                if (dist < p.radius) {
+                    pellets.splice(i, 1);       
+                    p.radius += 1;              
+                    pellets.push(spawnPellet());
                 }
             }
         }
+
+        // 3. 判定：大球吃小球
+        let playerIds = Object.keys(players);
+        for (let i = 0; i < playerIds.length; i++) {
+            for (let j = i + 1; j < playerIds.length; j++) {
+                let p1 = players[playerIds[i]];
+                let p2 = players[playerIds[j]];
+                if (!p1 || !p2) continue;
+
+                let dist = Math.hypot(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z);
+                
+                // 發生碰撞
+                if (dist < p1.radius + p2.radius) {
+                    if (p1.radius > p2.radius * 1.2) {
+                        p1.radius += p2.radius * 0.5;
+                        io.to(playerIds[j]).emit('you_lost', '你被吃掉了！');
+                        
+                        // 釋放被吃掉玩家的顏色
+                        room.usedColors = room.usedColors.filter(c => c !== p2.color);
+                        delete players[playerIds[j]];
+                    } else if (p2.radius > p1.radius * 1.2) {
+                        p2.radius += p1.radius * 0.5;
+                        io.to(playerIds[i]).emit('you_lost', '你被吃掉了！');
+                        
+                        room.usedColors = room.usedColors.filter(c => c !== p1.color);
+                        delete players[playerIds[i]];
+                    }
+                }
+            }
+        }
+
+        // 4. 只廣播給該房間的玩家
+        io.to(roomId).emit('update_game_state', { players, pellets });
     }
-
-    // 3. 統一廣播當前最新狀態
-    io.emit('update_game_state', { players, pellets });
-
 }, 30);
 
 http.listen(3000, () => console.log('伺服器在 3000 port 運行中...'));
+
+### 系統設計說明
+1. **Three.js 與 3D 視角**：使用了 `PointerLock API`，當玩家點擊進入遊戲後，滑鼠會鎖定並隱藏。滑鼠移動會改變相機環繞的角度 (Yaw/Pitch)，並透過球面三角函數讓鏡頭始終跟隨在玩家身後。
+2. **前後端相對運動計算**：因為視角是可以轉動的，前端程式碼將玩家按下的 `WASD` 根據當前的相機角度進行了「旋轉矩陣運算（Sin/Cos）」，轉換為絕對的 X 與 Z 軸力道後再送給後端。
+3. **房間隔離與防撞色**：伺服器現在用 `rooms` 物件管理所有房間，紀錄 `usedColors`。如果在選擇顏色階段發現顏色重複，伺服器會拒絕加入並跳出提示。
+4. **伺服器權威的跳躍物理**：跳躍不是在前端做的，而是前端發送 `jump: true` 指令，由後端執行 `y軸` 的拋物線與重力計算，這樣可以杜絕玩家開外掛飛在天上的問題！
+
+**部署前注意事項**：請記得在客戶端的 `index.html` 第 61 行，把 `io('http://localhost:3000')` 改回你 Render 的網址 `https://sphere-war.onrender.com` 喔！
