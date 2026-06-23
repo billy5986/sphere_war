@@ -99,7 +99,7 @@ io.on('connection', (socket) => {
             y: 20, // 初始高度
             z: (Math.random() - 0.5) * 500,
             vy: 0, // 垂直速度 (重力用)
-            radius: 20,
+            radius: 20, // 基礎體積為 20 (即 0 能量)
             color: color,
             name: name, // 將名稱存入玩家物件，這樣遊戲迴圈廣播時前端才收得到
             input: { dx: 0, dz: 0, jump: false, dash: false } // 存放客戶端傳來的意圖，新增 dash
@@ -151,16 +151,16 @@ setInterval(() => {
             let p = players[id];
             let input = p.input;
 
-            // 判斷是否正在衝刺（必須擁有大於 20.5 的體積才能衝刺）
-            let isDashing = input.dash && p.radius > 20.5;
+            // 判斷是否正在衝刺（體積必須大於基礎值 20 才有能量加速）
+            let isDashing = input.dash && p.radius > 20;
 
-            // 刪除體型變慢設定：統一基礎速度 7，衝刺時速度提升為 14
+            // 統一基礎速度 7，衝刺時速度提升為 14
             let speed = isDashing ? 14 : 7;
 
-            // 衝刺消耗體積/能量
+            // 衝刺直接消耗體積 (能量)
             if (isDashing) {
-                p.radius -= 0.05;
-                if (p.radius < 20) p.radius = 20; // 保護底線半徑不低於20
+                p.radius -= 0.05; // 每幀消耗體積
+                if (p.radius < 20) p.radius = 20; // 體積最低保護為 20 (0 能量)
             }
 
             p.x += input.dx * speed;
@@ -196,7 +196,7 @@ setInterval(() => {
                 let dist = Math.hypot(p.x - pellets[i].x, p.y - pellets[i].y, p.z - pellets[i].z);
                 if (dist < p.radius) {
                     pellets.splice(i, 1);       
-                    p.radius += 1;              
+                    p.radius += 1; // 每個光點 +1 體積 (即 +1 能量)         
                     pellets.push(spawnPellet());
                 }
             }
@@ -268,7 +268,7 @@ setInterval(() => {
                 p.z = (Math.random() - 0.5) * WORLD_SIZE;
                 p.y = 100;     // 從天上掉下來，比較有重生的感覺
                 p.vy = 0;
-                p.radius = 20; // 回復最小體型
+                p.radius = 20; // 回復最小體型 (0 能量)
             }
         }
 
