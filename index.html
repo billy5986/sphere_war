@@ -660,11 +660,12 @@
 
                 let isDashing = input.dash && p.radius > 20;
 
-                // 體積動態數值調整
+                // 體積動態數值調整 (150顆漸進式衰減)
                 let sizeFactor = Math.max(0, p.radius - 20); 
-                let baseSpeed = Math.max(3, 8 - sizeFactor * 0.025); 
-                let dashMult = Math.max(1.2, 2.0 - sizeFactor * 0.004); 
-                let dashCost = 0.05 + sizeFactor * 0.002;
+                // 使用平方根衰減：前期降速明顯，吃到約150顆(sizeFactor=150)時降至最低速3
+                let baseSpeed = Math.max(3, 8 - Math.sqrt(sizeFactor) * 0.41); 
+                let dashMult = Math.max(1.2, 2.0 - sizeFactor * 0.0053); 
+                let dashCost = 0.05 + sizeFactor * 0.0026;
 
                 let speed = isDashing ? baseSpeed * dashMult : baseSpeed; 
 
