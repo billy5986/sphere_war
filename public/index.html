@@ -15,7 +15,6 @@
         body { margin: 0; overflow: hidden; background-color: #050914; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; -webkit-user-select: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
         
-        /* 連線狀態標籤 */
         #connection-status {
             position: absolute; top: 20px; right: 20px; display: flex; align-items: center; gap: 10px;
             font-size: 0.85rem; font-weight: 600; color: #e2e8f0; background: rgba(15, 23, 42, 0.5);
@@ -31,7 +30,6 @@
 
         @keyframes pulse { 0% { opacity: 0.4; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } 100% { opacity: 0.4; transform: scale(0.8); } }
 
-        /* UI 覆蓋層 */
         #ui-layer {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -43,7 +41,6 @@
             z-index: 10; color: white; transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
-        /* 玻璃面板 */
         .panel {
             background: rgba(15, 23, 42, 0.4);
             backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
@@ -54,7 +51,6 @@
             box-sizing: border-box;
         }
         
-        /* 統一美化滾動條 */
         .panel::-webkit-scrollbar, .menu-card::-webkit-scrollbar { width: 8px; }
         .panel::-webkit-scrollbar-track, .menu-card::-webkit-scrollbar-track { 
             background: rgba(0, 0, 0, 0.25); border-radius: 4px; margin: 4px 0; 
@@ -80,7 +76,6 @@
             margin-bottom: 30px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
 
-        /* 選項卡片 */
         .menu-grid { display: flex; flex-direction: column; gap: 16px; }
         
         .menu-card {
@@ -112,7 +107,6 @@
         .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
         .divider::before { margin-right: 1em; } .divider::after { margin-left: 1em; }
 
-        /* 輸入與排版 */
         input[type="text"], select {
             width: 100%; padding: 14px 18px; margin-bottom: 16px; border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 14px; font-size: 1.05rem; text-align: center; box-sizing: border-box; outline: none;
@@ -134,7 +128,6 @@
         input[type="color"]::-webkit-color-swatch { border: 2px solid rgba(255, 255, 255, 0.15); border-radius: 12px; transition: border 0.3s; }
         input[type="color"]:hover::-webkit-color-swatch { border-color: #38bdf8; }
 
-        /* 按鈕樣式 */
         button {
             width: 100%; padding: 15px; border: none; border-radius: 14px; font-size: 1.05rem; font-weight: 700; cursor: pointer;
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); color: white; letter-spacing: 1px;
@@ -159,7 +152,6 @@
 
         .hidden { display: none !important; }
 
-        /* 左上角設定按鈕 */
         #settings-btn {
             position: absolute; top: 25px; left: 25px; background: transparent; border: none;
             cursor: pointer; display: none; font-size: 2.2rem; text-align: center;
@@ -168,7 +160,6 @@
         }
         #settings-btn:hover { transform: scale(1.15) rotate(90deg); }
 
-        /* 遊戲內設定選單覆蓋層 */
         #settings-overlay {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(2, 6, 23, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
@@ -180,7 +171,6 @@
         input[type="range"] { width: 100%; margin: 10px 0 25px 0; cursor: pointer; accent-color: #38bdf8; height: 6px; border-radius: 3px; }
         .control-label { text-align: left; margin-bottom: 8px; color: #cbd5e1; font-size: 0.95rem; font-weight: 600; display: flex; justify-content: space-between; }
 
-        /* 排行榜 */
         #leaderboard {
             position: absolute; top: 80px; right: 20px;
             background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
@@ -204,7 +194,6 @@
         }
         .player-score { color: #fcd34d; font-weight: bold; font-family: 'Courier New', monospace; font-size: 1.1rem; }
 
-        /* 準星 */
         #crosshair {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 8px; height: 8px; background: rgba(255,255,255,0.9); border-radius: 50%;
@@ -217,7 +206,6 @@
             font-weight: 600; font-size: 1.05rem; letter-spacing: 1px; padding: 0 20px; box-sizing: border-box;
         }
 
-        /* 玩家名稱標籤 */
         #name-tags-container {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
             pointer-events: none; overflow: hidden; z-index: 4; display: none;
@@ -232,7 +220,6 @@
             white-space: nowrap;
         }
 
-        /* 移動端觸控操作介面 (跳躍/衝刺) */
         #touch-controls {
             position: absolute; bottom: 30px; left: 0; width: 100%;
             display: none; justify-content: space-between; padding: 0 30px;
@@ -253,7 +240,6 @@
             transform: scale(0.9);
         }
 
-        /* Toast 提示框系統 */
         #toast-container {
             position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
             z-index: 1000; display: flex; flex-direction: column; gap: 10px; pointer-events: none;
@@ -269,7 +255,6 @@
         .toast.show { opacity: 1; transform: translateY(0) scale(1); }
         .toast.success { background: rgba(16, 185, 129, 0.95); }
 
-        /* 錯誤震動動畫 */
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
             20%, 60% { transform: translateX(-6px); }
@@ -299,14 +284,12 @@
     <div id="crosshair"></div>
     <div id="instruction" class="hidden">點擊畫面鎖定視角 | WASD 移動 | 空白鍵 跳躍 | Shift 鍵 衝刺</div>
 
-    <!-- 移動端輔助按鍵 -->
     <div id="touch-controls">
         <div id="touch-dash-btn" class="touch-btn">⚡ 衝刺</div>
         <div id="touch-jump-btn" class="touch-btn">🚀 跳躍</div>
     </div>
 
     <div id="ui-layer">
-        <!-- 主選單 -->
         <div id="main-menu-panel" class="panel">
             <div>
                 <h1 class="game-title">Sphere War</h1>
@@ -314,14 +297,12 @@
             </div>
 
             <div class="menu-grid">
-                <!-- 多人模式入口 -->
                 <div class="menu-card">
                     <h3>🌐 多人連線模式</h3>
                     <p>建立專屬房間或加入朋友的戰局，與真人較量。</p>
                     <button id="btn-show-multiplayer" class="primary">進入多人模式</button>
                 </div>
 
-                <!-- 單人模式入口 -->
                 <div class="menu-card">
                     <h3>💻 單人離線模式</h3>
                     <p>離線與 AI 機器人進行大亂鬥，鍛鍊你的技巧。</p>
@@ -330,21 +311,18 @@
             </div>
         </div>
 
-        <!-- 多人模式選單 -->
         <div id="multiplayer-panel" class="panel hidden">
             <h1 class="game-title" style="font-size: 2.2rem;">多人連線</h1>
             <div class="game-subtitle" style="margin-bottom: 15px;">Multiplayer</div>
             <div class="recommend-badge" style="margin-bottom: 20px; padding: 4px 12px; font-size: 0.8rem; color: #facc15;">💡 推薦 10 人以下最佳體驗</div>
 
             <div class="menu-grid">
-                <!-- 創建戰場 -->
                 <div class="menu-card" style="padding: 18px;">
                     <h3 style="font-size: 1.15rem;">建立戰場</h3>
                     <p style="font-size: 0.85rem; margin-bottom: 12px;">開啟專屬的連線房間，邀請朋友一起遊玩。</p>
                     <button id="btn-create-room" class="primary" disabled style="padding: 10px;">創建房間</button>
                 </div>
 
-                <!-- 加入戰場 -->
                 <div class="menu-card" style="padding: 18px;">
                     <h3 style="font-size: 1.15rem;">加入戰場</h3>
                     <p style="font-size: 0.85rem; margin-bottom: 12px;">輸入朋友提供的 6 碼代碼，立刻加入戰局。</p>
@@ -358,7 +336,6 @@
             <button id="btn-mp-back" class="danger" style="margin-top: 15px; padding: 12px;">返回主選單</button>
         </div>
 
-        <!-- 單人模式設定 -->
         <div id="sp-config-panel" class="panel hidden">
             <h1 class="game-title" style="font-size: 2.2rem;">單人設定</h1>
             <div class="game-subtitle" style="margin-bottom: 20px;">Local Arena</div>
@@ -387,7 +364,6 @@
             </div>
         </div>
 
-        <!-- 多人模式外觀選擇 -->
         <div id="color-panel" class="panel hidden">
             <h1 class="game-title" style="font-size: 2.2rem;">選擇外觀</h1>
             <div class="game-subtitle" style="margin-bottom: 20px;">Customize</div>
@@ -406,7 +382,6 @@
             <button id="btn-start-game" class="primary" style="margin-top: 10px;">下一步</button>
         </div>
 
-        <!-- 玩法講解 -->
         <div id="tutorial-panel" class="panel hidden">
             <h1 class="game-title" style="font-size: 2.2rem;">玩法介紹</h1>
             <div class="game-subtitle" style="margin-bottom: 20px;">How to play</div>
@@ -416,9 +391,10 @@
                 <p>🟢 <b>成長：</b>收集藍色光點變大。體積越大速度越慢，但更重難以被擊退。<br>
                    💥 <b>碰撞：</b>體型大於對手 10% 即可將其撞開！<br>
                    ⚔️ <b>反擊：</b>小球使用「衝刺」撞擊沒衝刺的大球，也能產生衝擊力將大球推開！<br>
+                   🔵 <b>加速陣：</b>踏上藍色光陣會瞬間向前強烈衝刺，期間撞擊力大幅提升！<br>
                    🔴 <b>紅刺：</b>實體障礙物。巨球的夢魘！體積過大時撞到紅色尖刺會<b>瞬間損失 20% 能量</b>並被強烈彈開！<br>
                    ⚡ <b>衝刺：</b>按 <b>Shift</b> / <b>右鍵</b> 加速。體積越大衝刺消耗越快、加速效果越差。<br>
-                
+                </p>
                 <div class="divider" style="margin: 15px 0;">操作</div>
                 
                 <h3 style="color: #38bdf8;">🎮 操作方式</h3>
@@ -430,7 +406,6 @@
         </div>
     </div>
 
-    <!-- 遊戲內設定選單 -->
     <div id="settings-overlay">
         <div class="panel">
             <h2 class="game-title" style="font-size: 2.2rem; margin-bottom: 10px;">設定</h2>
@@ -451,7 +426,6 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
-        // --- Custom UI Toast Notifications ---
         function showToast(message, isSuccess = false) {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -471,22 +445,20 @@
         function highlightInputError(inputId) {
             const input = document.getElementById(inputId);
             input.classList.remove('shake-error');
-            void input.offsetWidth; // Trigger reflow to restart animation
+            void input.offsetWidth; 
             input.classList.add('shake-error');
             setTimeout(() => input.classList.remove('shake-error'), 400);
         }
 
-        // --- Socket.io 連線與基礎設定 ---
         const backendUrl = 'https://sphere-war.onrender.com';
         const socket = io(backendUrl, { autoConnect: true });
 
-        // --- Config Three.js Rendering ---
         const canvas = document.getElementById('gameCanvas');
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0f172a); 
-        scene.fog = new THREE.Fog(0x0f172a, 200, 800);
+        scene.fog = new THREE.Fog(0x0f172a, 400, 2500);
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1500);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
         const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
@@ -519,11 +491,14 @@
         const pelletGeo = new THREE.SphereGeometry(1, 8, 8);       
         const pelletMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
 
-        // 尖刺模型準備
         const spikeGeo = new THREE.ConeGeometry(15, 40, 16);
         const spikeMat = new THREE.MeshStandardMaterial({ color: 0xe11d48, roughness: 0.4, metalness: 0.5 });
+        
+        const boostPadGeo = new THREE.CylinderGeometry(25, 25, 1, 32);
+        const boostPadMat = new THREE.MeshStandardMaterial({ 
+            color: 0x06b6d4, emissive: 0x06b6d4, emissiveIntensity: 0.6, transparent: true, opacity: 0.8 
+        });
 
-        // --- Texture Generation ---
         const ballTexCanvas = document.createElement('canvas');
         ballTexCanvas.width = 512;
         ballTexCanvas.height = 512;
@@ -554,11 +529,10 @@
         ballPattern.wrapT = THREE.RepeatWrapping;
         ballPattern.repeat.set(4, 2); 
 
-        // --- Core State Variables ---
         const WORLD_SIZE = 800; 
-        const SPIKE_RADIUS = 15; // 尖刺的實體半徑
-        let gameState = { players: {}, pellets: [], spikes: [] };
-        const meshes = { players: {}, pellets: [], spikes: [] };
+        const SPIKE_RADIUS = 15; 
+        let gameState = { players: {}, pellets: [], spikes: [], boostPads: [] };
+        const meshes = { players: {}, pellets: [], spikes: [], boostPads: [] };
         const nameTagsDOM = {}; 
 
         let yaw = 0;   
@@ -570,11 +544,11 @@
 
         const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
-        // --- Singleplayer Simulation Loop & AI ---
         function singlePlayerLoop() {
             let players = localGameState.players;
             let pellets = localGameState.pellets;
             let spikes = localGameState.spikes;
+            let boostPads = localGameState.boostPads;
             let difficultyLevel = parseInt(document.getElementById('npc-difficulty-select').value);
 
             let leaderId = null;
@@ -617,12 +591,11 @@
                     }
                 }
 
-                // AI 簡易避開尖刺
                 let avoidingSpike = false;
                 if (p.radius > 40) {
                     for(let i=0; i<spikes.length; i++) {
                         let d = Math.hypot(p.x - spikes[i].x, p.z - spikes[i].z);
-                        if (d < p.radius + 60) { // 預判範圍
+                        if (d < p.radius + 60) {
                             targetX = p.x + (p.x - spikes[i].x);
                             targetZ = p.z + (p.z - spikes[i].z);
                             avoidingSpike = true;
@@ -653,16 +626,56 @@
                 }
             }
 
-            // 移動與物理
             for (let id in players) {
                 let p = players[id];
-                let input = p.input;
+                
+                p.vx = p.vx || 0;
+                p.vz = p.vz || 0;
+                p.boostCooldown = p.boostCooldown || 0;
+                p.boostEffect = p.boostEffect || 0;
+                p.damageEffect = p.damageEffect || 0;
 
+                if (p.boostCooldown > 0) p.boostCooldown--;
+                if (p.boostEffect > 0) p.boostEffect--;
+                if (p.damageEffect > 0) p.damageEffect--;
+                
+                for (let i = 0; i < boostPads.length; i++) {
+                    let pad = boostPads[i];
+                    if (Math.hypot(p.x - pad.x, p.z - pad.z) < p.radius + pad.radius) {
+                        if (p.boostCooldown <= 0) {
+                            let speedDir = Math.hypot(p.input.dx, p.input.dz);
+                            let bx = 0, bz = 0;
+                            
+                            if (speedDir > 0) {
+                                bx = (p.input.dx / speedDir);
+                                bz = (p.input.dz / speedDir);
+                            } else if (p.vx !== 0 || p.vz !== 0) {
+                                let vDir = Math.hypot(p.vx, p.vz);
+                                bx = p.vx / vDir;
+                                bz = p.vz / vDir;
+                            } else {
+                                if (id === myId) {
+                                    bx = -Math.sin(yaw);
+                                    bz = -Math.cos(yaw);
+                                } else {
+                                    let angle = Math.random() * Math.PI * 2;
+                                    bx = Math.cos(angle);
+                                    bz = Math.sin(angle);
+                                }
+                            }
+                            
+                            p.vx += bx * 45; 
+                            p.vz += bz * 45;
+                            p.boostCooldown = 90; 
+                            p.boostEffect = 15;   
+                        }
+                    }
+                }
+
+                let input = p.input;
                 let isDashing = input.dash && p.radius > 20;
 
-                // 體積動態數值調整 (150顆漸進式衰減)
                 let sizeFactor = Math.max(0, p.radius - 20); 
-                // 使用平方根衰減：前期降速明顯，吃到約150顆(sizeFactor=150)時降至最低速3
                 let baseSpeed = Math.max(3, 8 - Math.sqrt(sizeFactor) * 0.41); 
                 let dashMult = Math.max(1.2, 2.0 - sizeFactor * 0.0053); 
                 let dashCost = 0.05 + sizeFactor * 0.0026;
@@ -676,6 +689,16 @@
 
                 p.x += input.dx * speed; 
                 p.z += input.dz * speed;
+                
+                p.x += p.vx;
+                p.z += p.vz;
+                
+                p.vx *= 0.85; 
+                p.vz *= 0.85;
+                
+                if (Math.abs(p.vx) < 0.1) p.vx = 0;
+                if (Math.abs(p.vz) < 0.1) p.vz = 0;
+
                 p.vy -= 1.5; 
                 p.y += p.vy; 
                 p.isGrounded = false;
@@ -691,7 +714,6 @@
                 }
             }
 
-            // 吃光點
             for (let id in players) {
                 let p = players[id];
                 for (let i = pellets.length - 1; i >= 0; i--) {
@@ -704,7 +726,6 @@
                 }
             }
 
-            // 尖刺陷阱判定 (加入物理實體阻擋效果)
             for (let id in players) {
                 let p = players[id];
                 for (let i = 0; i < spikes.length; i++) {
@@ -712,25 +733,25 @@
                     let dist = Math.hypot(p.x - spike.x, p.z - spike.z);
                     let minDist = p.radius + SPIKE_RADIUS;
 
-                    // 如果發生重疊 (發生物理碰撞)
                     if (dist < minDist) {
                         let overlap = minDist - dist;
                         let nx = dist > 0 ? (p.x - spike.x) / dist : 1;
                         let nz = dist > 0 ? (p.z - spike.z) / dist : 0;
 
-                        // 物理效果：強制將玩家推擠出尖刺範圍，無法穿越
                         p.x += nx * overlap;
                         p.z += nz * overlap;
 
-                        // 巨球懲罰判定
                         if (p.radius > 40) { 
                             let energy = p.radius - 20;
-                            let lostEnergy = energy * 0.2; // 損失 20% 能量
+                            let lostEnergy = energy * 0.2; 
                             p.radius -= lostEnergy;
                             
-                            p.vy = 20;
-                            p.x += nx * 40; 
-                            p.z += nz * 40;
+                            p.vy = 20; 
+                            
+                            p.vx += nx * 35; 
+                            p.vz += nz * 35;
+
+                            p.damageEffect = 15;
 
                             let dropCount = Math.min(30, Math.floor(lostEnergy));
                             for (let d = 0; d < dropCount; d++) {
@@ -746,7 +767,6 @@
                 }
             }
 
-            // 5. 玩家碰撞判定 (平衡優化版：雙向反作用力與質量排擠)
             let playerIds = Object.keys(players);
             for (let i = 0; i < playerIds.length; i++) {
                 for (let j = i + 1; j < playerIds.length; j++) {
@@ -763,28 +783,32 @@
                         let hnx = hDist > 0 ? dx / hDist : 1;
                         let hnz = hDist > 0 ? dz / hDist : 0;
 
-                        let baseForce = 200; 
+                        let baseForce = 15; 
                         let p1Dashing = p1.input.dash && p1.radius > 20;
                         let p2Dashing = p2.input.dash && p2.radius > 20;
 
-                        // 基礎與衝刺衝擊力分配
                         let f1on2 = baseForce; 
                         let f2on1 = baseForce;
 
+                        // 判斷是否為玩家親自施加的單方面衝刺，若是則倍率改為 2，否則保留 2.5
+                        let f1Multiplier = (playerIds[i] === myId) ? 2 : 2.5;
+                        let f2Multiplier = (playerIds[j] === myId) ? 2 : 2.5;
+
                         if (p1Dashing && !p2Dashing) {
-                            f1on2 = baseForce * 2.5; 
+                            f1on2 = baseForce * f1Multiplier; 
                         } else if (p2Dashing && !p1Dashing) {
-                            f2on1 = baseForce * 2.5;
+                            f2on1 = baseForce * f2Multiplier;
                         } else if (p1Dashing && p2Dashing) {
                             f1on2 = baseForce * 1.5;
                             f2on1 = baseForce * 1.5;
                         }
 
-                        // 質量抵抗 (最低保障提高至 0.4，大球也得退位)
+                        if (p1.boostEffect > 0) f1on2 *= 3;
+                        if (p2.boostEffect > 0) f2on1 *= 3;
+
                         let res1 = Math.max(0.4, 20 / p1.radius);
                         let res2 = Math.max(0.4, 20 / p2.radius);
 
-                        // 按各自半徑(質量)比例分攤重疊排擠，而不是只推單方
                         let totalRadius = p1.radius + p2.radius;
                         let p1OverlapRatio = p2.radius / totalRadius;
                         let p2OverlapRatio = p1.radius / totalRadius;
@@ -794,12 +818,11 @@
                         p2.x -= hnx * overlap * p2OverlapRatio;
                         p2.z -= hnz * overlap * p2OverlapRatio;
 
-                        // 雙方同時加上反作用力
-                        p1.x += hnx * (f2on1 * res1);
-                        p1.z += hnz * (f2on1 * res1);
+                        p1.vx += hnx * (f2on1 * res1);
+                        p1.vz += hnz * (f2on1 * res1);
 
-                        p2.x -= hnx * (f1on2 * res2);
-                        p2.z -= hnz * (f1on2 * res2);
+                        p2.vx -= hnx * (f1on2 * res2);
+                        p2.vz -= hnz * (f1on2 * res2);
                     }
                 }
             }
@@ -812,6 +835,11 @@
                     p.z = (Math.random() - 0.5) * WORLD_SIZE;
                     p.y = 100; 
                     p.vy = 0; 
+                    p.vx = 0; 
+                    p.vz = 0;
+                    p.boostCooldown = 0; 
+                    p.boostEffect = 0;
+                    p.damageEffect = 0;
                     p.radius = 20; 
                 }
             }
@@ -820,7 +848,6 @@
             updateLeaderboard();
         }
 
-        // --- Interaction Listeners ---
         const uiLayer = document.getElementById('ui-layer');
         const mainMenuPanel = document.getElementById('main-menu-panel');
         const multiplayerPanel = document.getElementById('multiplayer-panel');
@@ -857,9 +884,8 @@
         let isPlaying = false;
         let isSinglePlayer = false;
         let spGameLoopInterval = null;
-        let localGameState = { players: {}, pellets: [], spikes: [] };
+        let localGameState = { players: {}, pellets: [], spikes: [], boostPads: [] };
 
-        // --- Socket Setup ---
         socket.on('connect', () => {
             myId = socket.id;
             updateStatus('connected', '伺服器已連線');
@@ -888,7 +914,6 @@
             statusText.innerText = text;
         }
 
-        // --- Page Navigation ---
         btnShowMultiplayer.onclick = () => {
             mainMenuPanel.classList.add('hidden');
             multiplayerPanel.classList.remove('hidden');
@@ -913,7 +938,6 @@
         const npcCountVal = document.getElementById('npc-count-val');
         npcCountSlider.oninput = (e) => npcCountVal.innerText = e.target.value;
 
-        // 單人模式進入前檢查
         document.getElementById('btn-sp-start').onclick = () => {
             const nameInput = document.getElementById('sp-name-input');
             const name = nameInput.value.trim();
@@ -926,10 +950,9 @@
             tutorialPanel.classList.remove('hidden');
         };
 
-        // --- Start Singleplayer Game Mode ---
         function initSinglePlayer() {
             myId = myId || 'SP_PLAYER_' + Math.random().toString(36).substr(2, 5);
-            localGameState = { players: {}, pellets: [], spikes: [] };
+            localGameState = { players: {}, pellets: [], spikes: [], boostPads: [] };
             
             const pName = document.getElementById('sp-name-input').value.trim();
             const pColor = document.getElementById('sp-color-input').value;
@@ -958,6 +981,14 @@
                 });
             }
 
+            for(let i=0; i<8; i++) {
+                localGameState.boostPads.push({
+                    x: (Math.random() - 0.5) * WORLD_SIZE * 1.6,
+                    z: (Math.random() - 0.5) * WORLD_SIZE * 1.6,
+                    radius: 25
+                });
+            }
+
             spGameLoopInterval = setInterval(singlePlayerLoop, 30);
             startGameUI();
         }
@@ -965,12 +996,12 @@
         function createLocalPlayer(name, color) {
             return {
                 x: (Math.random() - 0.5) * 800, y: 50, z: (Math.random() - 0.5) * 800,
-                vy: 0, radius: 20, color: color, name: name,
+                vx: 0, vy: 0, vz: 0, boostCooldown: 0, boostEffect: 0, damageEffect: 0,
+                radius: 20, color: color, name: name,
                 input: { dx: 0, dz: 0, jump: false, dash: false }, isGrounded: false
             };
         }
 
-        // --- Multiplayer Core Listeners ---
         btnCreateRoom.onclick = () => { socket.emit('create_room'); };
 
         btnJoinRoom.onclick = () => {
@@ -1008,7 +1039,6 @@
             }, 2000);
         };
 
-        // 多人模式選擇外觀檢查
         document.getElementById('btn-start-game').onclick = () => {
             const nameInput = document.getElementById('name-input');
             const name = nameInput.value.trim();
@@ -1097,7 +1127,6 @@
 
         socket.on('you_lost', showLossMessage);
 
-        // --- Controls Settings Menu ---
         document.addEventListener('pointerlockchange', () => {
             if (isPlaying && !isTouchDevice) {
                 if (document.pointerLockElement === document.body) settingsOverlay.classList.remove('active');
@@ -1136,7 +1165,6 @@
             }
         });
 
-        // --- Pointer Movements & Clicks ---
         let touchStartX = 0;
         let touchStartY = 0;
         
@@ -1183,7 +1211,6 @@
             if (isPlaying) e.preventDefault();
         });
 
-        // Touch UI Buttons
         const touchJumpBtn = document.getElementById('touch-jump-btn');
         const touchDashBtn = document.getElementById('touch-dash-btn');
 
@@ -1245,7 +1272,6 @@
             justJumped = false; 
         }, 30);
 
-        // --- Leaderboard Rendering ---
         function updateLeaderboard() {
             const listDiv = document.getElementById('leaderboard-list');
             if (!gameState.players) return;
@@ -1277,7 +1303,6 @@
             listDiv.innerHTML = html;
         }
 
-        // --- Game Rendering Loop ---
         socket.on('update_game_state', (state) => {
             if (!isSinglePlayer) {
                 gameState = state;
@@ -1334,7 +1359,6 @@
                     const targetScale = p.radius || 20;
                     const currentRadius = mesh.scale.x || 1; 
 
-                    // 滾動與旋轉效果
                     const distance = Math.hypot(stepX, stepZ);
                     if (distance > 0.05) {
                         const angle = distance / currentRadius;
@@ -1346,7 +1370,16 @@
                     mesh.scale.y += (targetScale - mesh.scale.y) * 0.1;
                     mesh.scale.z += (targetScale - mesh.scale.z) * 0.1;
 
-                    // 投影 2D 名稱標籤
+                    if (p.damageEffect > 0) {
+                        mesh.material.emissive.setHex(0xff0000); 
+                        mesh.material.emissiveIntensity = 0.8; 
+                    } else if (p.boostEffect > 0) {
+                        mesh.material.emissive.setHex(0x06b6d4); 
+                        mesh.material.emissiveIntensity = 0.6 + Math.sin(Date.now() * 0.02) * 0.4;
+                    } else {
+                        mesh.material.emissive.setHex(0x000000); 
+                    }
+
                     const tagPos = mesh.position.clone();
                     tagPos.y += currentRadius + 8; 
                     tagPos.project(camera); 
@@ -1361,21 +1394,26 @@
                         nameTagsDOM[id].style.opacity = '0'; 
                     }
 
-                    // 鏡頭鎖定與動態阻尼
                     if (id === myId) {
-                        const cameraDistance = 150 + p.radius * 2.2;
+                        const cameraDistance = 150 + p.radius * 2.8; 
+                        
                         const cx = mesh.position.x + cameraDistance * Math.sin(yaw) * Math.cos(pitch);
-                        const cy = mesh.position.y + cameraDistance * Math.sin(pitch) + p.radius; 
+                        const cy = mesh.position.y + cameraDistance * Math.sin(pitch) + p.radius * 1.5; 
                         const cz = mesh.position.z + cameraDistance * Math.cos(yaw) * Math.cos(pitch);
 
                         camera.position.set(cx, cy, cz); 
-                        if (camera.position.y < 3) camera.position.y = 3;
+                        
+                        const minCamY = Math.max(3, p.radius * 0.4);
+                        if (camera.position.y < minCamY) camera.position.y = minCamY;
+                        
                         camera.lookAt(mesh.position);
+
+                        scene.fog.near = cameraDistance + 200;  
+                        scene.fog.far = cameraDistance + 1500; 
                     }
                 }
             }
 
-            // 清理離線物件
             for (let id in meshes.players) {
                 if (!currentPlayers[id]) {
                     scene.remove(meshes.players[id]);
@@ -1389,7 +1427,6 @@
                 }
             }
 
-            // 渲染尖刺
             if (gameState.spikes) {
                 while (meshes.spikes.length < gameState.spikes.length) {
                     const mesh = new THREE.Mesh(spikeGeo, spikeMat);
@@ -1404,8 +1441,21 @@
                     meshes.spikes[i].position.z = gameState.spikes[i].z;
                 }
             }
+            
+            if (gameState.boostPads) {
+                while (meshes.boostPads.length < gameState.boostPads.length) {
+                    const mesh = new THREE.Mesh(boostPadGeo, boostPadMat);
+                    mesh.position.y = 0.5; 
+                    mesh.receiveShadow = true;
+                    scene.add(mesh);
+                    meshes.boostPads.push(mesh);
+                }
+                for (let i = 0; i < gameState.boostPads.length; i++) {
+                    meshes.boostPads[i].position.x = gameState.boostPads[i].x;
+                    meshes.boostPads[i].position.z = gameState.boostPads[i].z;
+                }
+            }
 
-            // 渲染光點 (已修正 3D 渲染高度與飄移問題)
             if (gameState.pellets) {
                 while (meshes.pellets.length < gameState.pellets.length) {
                     const mesh = new THREE.Mesh(pelletGeo, pelletMat);
