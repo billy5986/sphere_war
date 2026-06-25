@@ -6,6 +6,7 @@ const io = require('socket.io')(http, { cors: { origin: "*" } });
 let rooms = {};
 const MAX_PELLETS = 50;
 const MAX_SPIKES = 15;
+const MAX_BOOST_PADS = 8; // 新增：加速陣數量
 const WORLD_SIZE = 800; 
 const SPIKE_RADIUS = 15; // 尖刺的物理半徑
 
@@ -31,16 +32,26 @@ function spawnSpike() {
     };
 }
 
+// 產生加速陣
+function spawnBoostPad() {
+    return {
+        x: (Math.random() - 0.5) * WORLD_SIZE * 1.6,
+        z: (Math.random() - 0.5) * WORLD_SIZE * 1.6,
+        radius: 25
+    };
+}
+
 io.on('connection', (socket) => {
     console.log('新玩家連線:', socket.id);
     let currentRoom = null;
 
     socket.on('create_room', () => {
         const roomId = generateRoomCode();
-        rooms[roomId] = { players: {}, pellets: [], spikes: [], usedColors: [], usedNames: [] };
+        rooms[roomId] = { players: {}, pellets: [], spikes: [], boostPads: [], usedColors: [], usedNames: [] };
         
         for (let i = 0; i < MAX_PELLETS; i++) rooms[roomId].pellets.push(spawnPellet());
         for (let i = 0; i < MAX_SPIKES; i++) rooms[roomId].spikes.push(spawnSpike());
+        for (let i = 0; i < MAX_BOOST_PADS; i++) rooms[roomId].boostPads.push(spawnBoostPad()); // 初始化加速陣
 
         socket.join(roomId);
         currentRoom = roomId;
@@ -78,9 +89,11 @@ io.on('connection', (socket) => {
         rooms[roomId].usedColors.push(color);
         rooms[roomId].usedNames.push(name);
         
+        // 賦予新的物理變數 (vx, vz, 特效計時器)
         rooms[roomId].players[socket.id] = {
             x: (Math.random() - 0.5) * 500, y: 20, z: (Math.random() - 0.5) * 500,
-            vy: 0, radius: 20, color: color, name: name,
+            vx: 0, vy: 0, vz: 0, boostCooldown: 0, boostEffect: 0, damageEffect: 0,
+            radius: 20, color: color, name: name,
             input: { dx: 0, dz: 0, jump: false, dash: false }
         };
 
@@ -113,19 +126,59 @@ setInterval(() => {
         let players = room.players;
         let pellets = room.pellets;
         let spikes = room.spikes;
+        let boostPads = room.boostPads;
 
-        // 1. 移動與物理 (150 顆漸進式衰減)
+        // 1. 移動與物理
         for (let id in players) {
             let p = players[id];
-            let input = p.input;
-            let isDashing = input.dash && p.radius > 20;
+            
+            // 確保具備物理速度與特效的變數 (防呆)
+            p.vx = p.vx || 0;
+            p.vz = p.vz || 0;
+            p.boostCooldown = p.boostCooldown || 0;
+            p.boostEffect = p.boostEffect || 0;
+            p.damageEffect = p.damageEffect || 0;
 
+            // 遞減特效計時器
+            if (p.boostCooldown > 0) p.boostCooldown--;
+            if (p.boostEffect > 0) p.boostEffect--;
+            if (p.damageEffect > 0) p.damageEffect--;
+
+            let input = p.input;
+
+            // 檢查是否踩到加速帶
+            for (let i = 0; i < boostPads.length; i++) {
+                let pad = boostPads[i];
+                if (Math.hypot(p.x - pad.x, p.z - pad.z) < p.radius + pad.radius) {
+                    if (p.boostCooldown <= 0) {
+                        let speedDir = Math.hypot(input.dx, input.dz);
+                        let bx = 0, bz = 0;
+                        
+                        if (speedDir > 0) {
+                            bx = (input.dx / speedDir);
+                            bz = (input.dz / speedDir);
+                        } else if (p.vx !== 0 || p.vz !== 0) {
+                            let vDir = Math.hypot(p.vx, p.vz);
+                            bx = p.vx / vDir;
+                            bz = p.vz / vDir;
+                        } else {
+                            // 靜止時隨機方向衝刺
+                            let angle = Math.random() * Math.PI * 2;
+                            bx = Math.cos(angle);
+                            bz = Math.sin(angle);
+                        }
+                        
+                        p.vx += bx * 45; 
+                        p.vz += bz * 45;
+                        p.boostCooldown = 90; // 3 秒 CD
+                        p.boostEffect = 15;   // 0.5 秒特效
+                    }
+                }
+            }
+
+            let isDashing = input.dash && p.radius > 20;
             let sizeFactor = Math.max(0, p.radius - 20); 
-            
-            // ⭐️ 核心修改：漸進式平方根衰減 (吃到 150 顆 / 半徑 170 時降至保底速度 3)
             let baseSpeed = Math.max(3, 8 - Math.sqrt(sizeFactor) * 0.41); 
-            
-            // 配合 150 顆上限微調衝刺耗損與倍率
             let dashMult = Math.max(1.2, 2.0 - sizeFactor * 0.0053); 
             let dashCost = 0.05 + sizeFactor * 0.0026;
 
@@ -136,8 +189,21 @@ setInterval(() => {
                 if (p.radius < 20) p.radius = 20; 
             }
 
+            // A. 主動操作移動
             p.x += input.dx * speed;
             p.z += input.dz * speed;
+
+            // B. 物理慣性移動 (碰撞擊退、加速陣)
+            p.x += p.vx;
+            p.z += p.vz;
+
+            // C. 摩擦力 (減速)
+            p.vx *= 0.85; 
+            p.vz *= 0.85;
+            if (Math.abs(p.vx) < 0.1) p.vx = 0;
+            if (Math.abs(p.vz) < 0.1) p.vz = 0;
+
+            // 重力與跳躍
             p.vy -= 1.5; 
             p.y += p.vy;
 
@@ -161,12 +227,14 @@ setInterval(() => {
                 if (dist < p.radius + 15) {
                     pellets.splice(i, 1);       
                     p.radius += 1;          
-                    pellets.push(spawnPellet());
+                    if (pellets.length < MAX_PELLETS) {
+                        pellets.push(spawnPellet());
+                    }
                 }
             }
         }
 
-        // 3. 尖刺陷阱判定 (加入物理實體阻擋效果)
+        // 3. 尖刺陷阱判定
         for (let id in players) {
             let p = players[id];
             for (let i = 0; i < spikes.length; i++) {
@@ -174,32 +242,36 @@ setInterval(() => {
                 let dist = Math.hypot(p.x - spike.x, p.z - spike.z);
                 let minDist = p.radius + SPIKE_RADIUS;
 
-                // 如果發生重疊 (發生物理碰撞)
                 if (dist < minDist) {
                     let overlap = minDist - dist;
                     let nx = dist > 0 ? (p.x - spike.x) / dist : 1;
                     let nz = dist > 0 ? (p.z - spike.z) / dist : 0;
 
-                    // 物理效果：強制將玩家推擠出尖刺範圍，無法穿越
+                    // 物理排擠
                     p.x += nx * overlap;
                     p.z += nz * overlap;
 
-                    // 巨球懲罰判定 (大於 40 半徑 / 20 能量觸發)
+                    // 巨球懲罰判定
                     if (p.radius > 40) {
                         let energy = p.radius - 20;
-                        let lostEnergy = energy * 0.2; // 損失 20% 能量
+                        let lostEnergy = energy * 0.2; 
                         p.radius -= lostEnergy;
                         
-                        p.vy = 20; // 刺到會稍微彈起
-                        // 給予額外強烈擊退力道
-                        p.x += nx * 40; 
-                        p.z += nz * 40;
+                        p.vy = 20; 
+                        
+                        // 套用慣性擊退速度
+                        p.vx += nx * 35; 
+                        p.vz += nz * 35;
+                        p.damageEffect = 15; // 受傷紅光特效
 
                         // 噴灑光點
                         let dropCount = Math.min(30, Math.floor(lostEnergy));
                         for (let d = 0; d < dropCount; d++) {
                             let dropAngle = Math.random() * Math.PI * 2;
                             let dropDist = SPIKE_RADIUS + 10 + Math.random() * 60;
+                            if (pellets.length >= MAX_PELLETS) {
+                                pellets.shift();
+                            }
                             pellets.push({
                                 x: spike.x + Math.cos(dropAngle) * dropDist, y: 4,
                                 z: spike.z + Math.sin(dropAngle) * dropDist
@@ -210,7 +282,7 @@ setInterval(() => {
             }
         }
 
-        // 4. 玩家碰撞判定 (平衡優化版：引入反作用力與衝刺破防機制)
+        // 4. 玩家碰撞判定 (完整物理反作用力版)
         let playerIds = Object.keys(players);
         for (let i = 0; i < playerIds.length; i++) {
             for (let j = i + 1; j < playerIds.length; j++) {
@@ -228,46 +300,45 @@ setInterval(() => {
                     let hnx = hDist > 0 ? dx / hDist : 1;
                     let hnz = hDist > 0 ? dz / hDist : 0;
 
-                    let baseForce = 200;
+                    let baseForce = 15;
                     let p1Dashing = p1.input.dash && p1.radius > 20;
                     let p2Dashing = p2.input.dash && p2.radius > 20;
 
-                    // 基礎衝擊力
                     let f1on2 = baseForce;
                     let f2on1 = baseForce;
 
-                    // 衝刺加成：如果單方面衝刺，衝刺者給予對方的力道大幅增加（用來對抗大球的質量）
                     if (p1Dashing && !p2Dashing) {
-                        f1on2 = baseForce * 2.5; // p1 衝刺，給 p2 的力道變大
+                        f1on2 = baseForce * 2; 
                     } else if (p2Dashing && !p1Dashing) {
-                        f2on1 = baseForce * 2.5; // p2 衝刺，給 p1 的力道變大
+                        f2on1 = baseForce * 2; 
                     } else if (p1Dashing && p2Dashing) {
                         f1on2 = baseForce * 1.5;
                         f2on1 = baseForce * 1.5;
                     }
 
-                    // 質量（半徑）抵抗係數：半徑越大，被擊退的比例越小
-                    // 原本最小值限制在 0.2，現在提升至 0.4，確保巨球被小球衝刺撞到時依然有足夠的位移
+                    // 衝刺陣的強化狀態
+                    if (p1.boostEffect > 0) f1on2 *= 3;
+                    if (p2.boostEffect > 0) f2on1 *= 3;
+
                     let res1 = Math.max(0.4, 20 / p1.radius); 
                     let res2 = Math.max(0.4, 20 / p2.radius);
 
-                    // 修正重疊排擠 (雙方依據質量比例共同退開，不再由單方承受)
-                    // 質量越大移動越少，質量越小被推開越多
                     let totalRadius = p1.radius + p2.radius;
-                    let p1OverlapRatio = p2.radius / totalRadius; // p2 越大，p1 被推開越多
+                    let p1OverlapRatio = p2.radius / totalRadius; 
                     let p2OverlapRatio = p1.radius / totalRadius;
 
+                    // A. 座標直接排擠 (防止球體穿透)
                     p1.x += hnx * overlap * p1OverlapRatio;
                     p1.z += hnz * overlap * p1OverlapRatio;
                     p2.x -= hnx * overlap * p2OverlapRatio;
                     p2.z -= hnz * overlap * p2OverlapRatio;
 
-                    // 擊飛力道套用 (雙方皆會受到對方的衝擊力影響，並乘上自己的質量抵抗)
-                    p1.x += hnx * (f2on1 * res1);
-                    p1.z += hnz * (f2on1 * res1);
+                    // B. 賦予物理反作用力速度 (vx, vz)
+                    p1.vx += hnx * (f2on1 * res1);
+                    p1.vz += hnz * (f2on1 * res1);
 
-                    p2.x -= hnx * (f1on2 * res2);
-                    p2.z -= hnz * (f1on2 * res2);
+                    p2.vx -= hnx * (f1on2 * res2);
+                    p2.vz -= hnz * (f1on2 * res2);
                 }
             }
         }
@@ -279,10 +350,12 @@ setInterval(() => {
                 io.to(id).emit('you_lost', '你掉入虛空了！復活中...');
                 p.x = (Math.random() - 0.5) * WORLD_SIZE; p.z = (Math.random() - 0.5) * WORLD_SIZE;
                 p.y = 100; p.vy = 0; p.radius = 20; 
+                p.vx = 0; p.vz = 0; p.boostCooldown = 0; p.boostEffect = 0; p.damageEffect = 0; // 重置狀態
             }
         }
 
-        io.to(roomId).emit('update_game_state', { players, pellets, spikes });
+        // 回傳完整的遊戲狀態 (包含新增的 boostPads)
+        io.to(roomId).emit('update_game_state', { players, pellets, spikes, boostPads });
     }
 }, 30);
 
