@@ -76,6 +76,7 @@ io.on('connection', (socket) => {
         const spikeDamage = config.spikeDamage !== undefined ? config.spikeDamage : 20;
         const globalReverse = config.globalReverse || false;
         const boostForce = config.boostForce !== undefined ? config.boostForce : 45;
+        const magmaBurn = config.magmaBurn !== undefined ? config.magmaBurn : 5;
         const mapType = config.mapType || 'normal';
         
         // 依照設定決定光點數量
@@ -99,6 +100,7 @@ io.on('connection', (socket) => {
             spikeDamage: spikeDamage,
             globalReverse: globalReverse,
             boostForce: boostForce,
+            magmaBurn: magmaBurn,
             currentConveyorDirIndex: 0,
             lastConveyorSwitchTime: Date.now()
         };
@@ -225,9 +227,9 @@ setInterval(() => {
             p.inMagma = false;
 
             for(let i=0; i<magmas.length; i++) {
-                if (Math.hypot(p.x - magmas[i].x, p.z - magmas[i].z) < magmas[i].radius) {
+                if (Math.hypot(p.x - magmas[i].x, p.z - magmas[i].z) < p.radius + magmas[i].radius) {
                     p.inMagma = true;
-                    p.magmaBurnTimer = 5 * 33; 
+                    p.magmaBurnTimer = (room.magmaBurn !== undefined ? room.magmaBurn : 5) * 33; 
                 }
             }
 
