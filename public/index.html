@@ -122,6 +122,20 @@
             100% { background-position: 0 -40px; } 
         }
         
+        /* 模擬冰原預覽 */
+        .preview-ice { 
+            background-color: #bae6fd; 
+            background-image: radial-gradient(circle at center, rgba(255,255,255,0.8) 0%, transparent 60%);
+            box-shadow: inset 0 0 20px rgba(125,211,252,0.8);
+        }
+        
+        /* 模擬岩漿預覽 */
+        .preview-magma {
+            background-color: #450a0a;
+            background-image: radial-gradient(circle at 30% 30%, rgba(220, 38, 38, 0.6) 0%, transparent 50%), radial-gradient(circle at 70% 70%, rgba(239, 68, 68, 0.4) 0%, transparent 50%);
+            box-shadow: inset 0 0 20px rgba(220, 38, 38, 0.8);
+        }
+        
         .map-name { font-size: 1.3rem; font-weight: 800; color: #38bdf8; margin-bottom: 5px; }
         .map-desc { font-size: 0.85rem; color: #cbd5e1; line-height: 1.4; height: 40px; }
 
@@ -402,8 +416,19 @@
             <div class="control-label"><span>尖刺數量</span><span id="mp-spike-count-val">15</span></div>
             <input type="range" id="mp-spike-count-slider" min="0" max="150" value="15">
 
-            <div class="control-label"><span>加速陣數量</span><span id="mp-boost-count-val">8</span></div>
+            <div class="control-label"><span>加速帶數量</span><span id="mp-boost-count-val">8</span></div>
             <input type="range" id="mp-boost-count-slider" min="0" max="60" value="8">
+            
+            <div class="magma-setting-group">
+                <div class="control-label"><span>岩漿殘留秒數</span><span id="mp-magma-burn-val">5</span></div>
+                <input type="range" id="mp-magma-burn-slider" min="0" max="15" value="5">
+                
+                <div class="control-label"><span>岩漿池數量</span><span id="mp-magma-count-val">1</span></div>
+                <input type="range" id="mp-magma-count-slider" min="0" max="50" value="1">
+
+                <div class="control-label"><span>岩漿平均大小</span><span id="mp-magma-size-val">100</span></div>
+                <input type="range" id="mp-magma-size-slider" min="20" max="400" step="10" value="100">
+            </div>
             
             <div class="menu-grid" style="margin-top: 25px;">
                 <button id="btn-mp-settings-create" class="primary">創建並進入</button>
@@ -447,8 +472,19 @@
             <div class="control-label"><span>尖刺數量</span><span id="spike-count-val">15</span></div>
             <input type="range" id="spike-count-slider" min="0" max="150" value="15">
 
-            <div class="control-label"><span>加速陣數量</span><span id="boost-count-val">8</span></div>
+            <div class="control-label"><span>加速帶數量</span><span id="boost-count-val">8</span></div>
             <input type="range" id="boost-count-slider" min="0" max="60" value="8">
+            
+            <div class="magma-setting-group">
+                <div class="control-label"><span>岩漿殘留秒數</span><span id="magma-burn-val">5</span></div>
+                <input type="range" id="magma-burn-slider" min="0" max="15" value="5">
+                
+                <div class="control-label"><span>岩漿池數量</span><span id="magma-count-val">1</span></div>
+                <input type="range" id="magma-count-slider" min="0" max="50" value="1">
+
+                <div class="control-label"><span>岩漿平均大小</span><span id="magma-size-val">100</span></div>
+                <input type="range" id="magma-size-slider" min="20" max="400" step="10" value="100">
+            </div>
             
             <div class="control-label">NPC 難度 (AI)</div>
             <select id="npc-difficulty-select">
@@ -473,7 +509,7 @@
                 <p>🟢 <b>成長：</b>收集藍色光點變大。體積越大速度越慢，但更重難以被擊退。<br>
                    💥 <b>碰撞：</b>體型大於對手 10% 即可將其撞開！<br>
                    ⚔️ <b>反擊：</b>小球使用「衝刺」撞擊沒衝刺的大球，也能產生衝擊力將大球推開！<br>
-                   🔵 <b>加速陣：</b>踏上藍色光陣會瞬間向前強烈衝刺，期間撞擊力大幅提升！<br>
+                   🔵 <b>加速帶：</b>踏上藍色光陣會瞬間向前強烈衝刺，期間撞擊力大幅提升！<br>
                    🔴 <b>紅刺：</b>實體障礙物。撞到紅色尖刺會<b>瞬間損失 20% 能量</b>並被強烈彈開！<br>
                    ⚡ <b>衝刺：</b>按 <b>Shift</b> / <b>右鍵</b> 加速。體積越大衝刺消耗越快。<br>
                    🔄 <b>地圖特效：</b>若選擇「輸送帶地圖」，地板每30秒改變推力方向，順向加速、逆向減速！
@@ -539,7 +575,9 @@
         // --- 地圖系統設計 ---
         const MapTypes = [
             { id: 'normal', name: '一般地圖', desc: '標準的競技場地，沒有額外的干擾，純粹的實力對決。', class: 'preview-normal' },
-            { id: 'conveyor', name: '向量推力 (輸送帶)', desc: '地板為持續運作的區域推力場！每30秒改變推力方向。順著箭頭可疊加移動速度，逆著箭頭則會產生強烈阻力。', class: 'preview-conveyor' }
+            { id: 'conveyor', name: '向量推力', desc: '地板為持續運作的區域推力場！每30秒改變推力方向。順著箭頭可疊加移動速度，逆著箭頭則會產生強烈阻力。', class: 'preview-conveyor' },
+            { id: 'ice', name: '冰原滑行', desc: '極度光滑的冰面，移動具有極大的慣性！在冰面上難以煞車，加速帶與衝刺也會讓你滑行得更遠。', class: 'preview-ice' },
+            { id: 'magma', name: '岩漿煉獄', desc: '危險的岩漿地形，踏入會使移動變慢且無法衝刺，並且持續燃燒體力直到剩下基礎大小。離開後燃燒仍會持續！', class: 'preview-magma' }
         ];
         let currentMapSelectIndex = 0;
         let selectedMapType = 'normal';
@@ -585,6 +623,16 @@
         
         // 生成一般地板材質
         const normalGroundMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.9 });
+        
+        // 生成冰原材質
+        const iceGroundMat = new THREE.MeshStandardMaterial({ color: 0xbae6fd, roughness: 0.1, metalness: 0.4, transparent: true, opacity: 0.9 });
+        
+        // 生成岩漿地板材質 (較暗)
+        const magmaGroundMat = new THREE.MeshStandardMaterial({ color: 0x1a0f0f, roughness: 0.9 });
+        
+        // 生成岩漿區域材質與幾何體
+        const magmaGeo = new THREE.CylinderGeometry(1, 1, 1, 32); 
+        const magmaMat = new THREE.MeshStandardMaterial({ color: 0xff0000, transparent: true, opacity: 0.5, emissive: 0xff0000, emissiveIntensity: 0.5 });
         
         // 動態生成輸送帶箭頭貼圖
         const arrowTexCanvas = document.createElement('canvas');
@@ -633,6 +681,10 @@
                     conveyorGroundMat.map.rotation = conveyorDirections[currentConveyorDirIndex].rot;
                     // 因為旋轉了，中心點偏移設定
                     conveyorGroundMat.map.center.set(0.5, 0.5);
+                } else if (mapType === 'ice') {
+                    ground.material = iceGroundMat;
+                } else if (mapType === 'magma') {
+                    ground.material = magmaGroundMat;
                 } else {
                     ground.material = normalGroundMat;
                 }
@@ -645,6 +697,18 @@
             if (mapType === 'normal') {
                 const divisions = Math.max(10, Math.floor(size / 13)); 
                 gridHelper = new THREE.GridHelper(size * 2, divisions, 0x334155, 0x1e293b);
+                gridHelper.position.y = 0.1;
+                scene.add(gridHelper);
+            } else if (mapType === 'ice') {
+                const divisions = Math.max(10, Math.floor(size / 20)); 
+                gridHelper = new THREE.GridHelper(size * 2, divisions, 0xffffff, 0x7dd3fc);
+                gridHelper.material.opacity = 0.3;
+                gridHelper.material.transparent = true;
+                gridHelper.position.y = 0.1;
+                scene.add(gridHelper);
+            } else if (mapType === 'magma') {
+                const divisions = Math.max(10, Math.floor(size / 13)); 
+                gridHelper = new THREE.GridHelper(size * 2, divisions, 0x450a0a, 0x1a0505);
                 gridHelper.position.y = 0.1;
                 scene.add(gridHelper);
             }
@@ -684,8 +748,8 @@
 
         // --- 狀態管理 ---
         const SPIKE_RADIUS = 15; 
-        let gameState = { players: {}, pellets: [], spikes: [], boostPads: [] };
-        const meshes = { players: {}, pellets: [], spikes: [], boostPads: [] };
+        let gameState = { players: {}, pellets: [], spikes: [], boostPads: [], magmas: [] };
+        const meshes = { players: {}, pellets: [], spikes: [], boostPads: [], magmas: [] };
         const nameTagsDOM = {}; 
 
         let yaw = 0, pitch = 0; 
@@ -799,12 +863,25 @@
                 p.vx = p.vx || 0; p.vz = p.vz || 0;
                 p.boostCooldown = p.boostCooldown || 0;
                 p.boostEffect = p.boostEffect || 0; p.damageEffect = p.damageEffect || 0;
+                p.magmaBurnTimer = p.magmaBurnTimer || 0;
+                p.inMagma = false;
 
                 if (p.boostCooldown > 0) p.boostCooldown--;
                 if (p.boostEffect > 0) p.boostEffect--;
                 if (p.damageEffect > 0) p.damageEffect--;
                 
-                // 加速陣觸發
+                if (localGameState.magmas) {
+                    for (let i = 0; i < localGameState.magmas.length; i++) {
+                        let m = localGameState.magmas[i];
+                        if (Math.hypot(p.x - m.x, p.z - m.z) < p.radius + m.radius) {
+                            p.inMagma = true;
+                            let burnSecs = parseInt(document.getElementById('magma-burn-slider').value) || 5;
+                            p.magmaBurnTimer = burnSecs * 33; 
+                        }
+                    }
+                }
+                
+                // 加速帶觸發
                 for (let i = 0; i < boostPads.length; i++) {
                     let pad = boostPads[i];
                     if (Math.hypot(p.x - pad.x, p.z - pad.z) < p.radius + pad.radius) {
@@ -819,26 +896,47 @@
                                 if (id === myId) { bx = -Math.sin(yaw); bz = -Math.cos(yaw); } 
                                 else { let angle = Math.random() * Math.PI * 2; bx = Math.cos(angle); bz = Math.sin(angle); }
                             }
-                            p.vx += bx * 45; p.vz += bz * 45;
+                            let boostForce = selectedMapType === 'ice' ? 18 : 45;
+                            p.vx += bx * boostForce; p.vz += bz * boostForce;
                             p.boostCooldown = 90; p.boostEffect = 15;   
                         }
                     }
                 }
 
                 let input = p.input;
-                let isDashing = input.dash && p.radius > 20;
+                let isDashing = input.dash && p.radius > 20 && !p.inMagma;
 
                 let sizeFactor = Math.max(0, p.radius - 20); 
                 let baseSpeed = Math.max(3, 8 - Math.sqrt(sizeFactor) * 0.41); 
                 let dashMult = Math.max(1.2, 2.0 - sizeFactor * 0.0053); 
                 let dashCost = 0.05 + sizeFactor * 0.0026;
                 let speed = isDashing ? baseSpeed * dashMult : baseSpeed; 
+                if (p.inMagma) speed *= 0.4;
 
                 if (isDashing) { p.radius -= dashCost; if (p.radius < 20) p.radius = 20; }
+                
+                if (p.magmaBurnTimer > 0) {
+                    p.magmaBurnTimer--;
+                    p.radius -= 1/33;
+                    if (p.radius < 20) p.radius = 20;
+                    p.damageEffect = Math.max(p.damageEffect, 2);
+                }
 
+                let isIce = selectedMapType === 'ice';
+                let friction = (isIce && p.isGrounded) ? 0.97 : 0.85;
+                
                 // 計算基礎玩家移動向量
-                let playerMoveX = input.dx * speed + p.vx;
-                let playerMoveZ = input.dz * speed + p.vz;
+                let playerMoveX, playerMoveZ;
+                if (isIce) {
+                    let accelRate = p.isGrounded ? 0.04 : 0.01; 
+                    p.vx += input.dx * (speed * accelRate);
+                    p.vz += input.dz * (speed * accelRate);
+                    playerMoveX = p.vx;
+                    playerMoveZ = p.vz;
+                } else {
+                    playerMoveX = input.dx * speed + p.vx;
+                    playerMoveZ = input.dz * speed + p.vz;
+                }
                 
                 // 結合環境向量推力 (若在空中則受推力影響較小)
                 let environmentForceX = 0;
@@ -853,7 +951,7 @@
                 p.x += playerMoveX + environmentForceX; 
                 p.z += playerMoveZ + environmentForceZ;
                 
-                p.vx *= 0.85; p.vz *= 0.85;
+                p.vx *= friction; p.vz *= friction;
                 if (Math.abs(p.vx) < 0.1) p.vx = 0;
                 if (Math.abs(p.vz) < 0.1) p.vz = 0;
 
@@ -925,17 +1023,24 @@
                         let hnx = hDist > 0 ? dx / hDist : 1;
                         let hnz = hDist > 0 ? dz / hDist : 0;
 
-                        let baseForce = 15; 
+                        let baseForce1 = 15; 
+                        let baseForce2 = 15;
+                        
+                        if (selectedMapType === 'ice') {
+                            baseForce1 += Math.hypot(p1.vx, p1.vz) * 0.8;
+                            baseForce2 += Math.hypot(p2.vx, p2.vz) * 0.8;
+                        }
+
                         let p1Dashing = p1.input.dash && p1.radius > 20;
                         let p2Dashing = p2.input.dash && p2.radius > 20;
 
-                        let f1on2 = baseForce, f2on1 = baseForce;
+                        let f1on2 = baseForce1, f2on1 = baseForce2;
                         let f1Mult = (playerIds[i] === myId) ? 2 : 2.5;
                         let f2Mult = (playerIds[j] === myId) ? 2 : 2.5;
 
-                        if (p1Dashing && !p2Dashing) f1on2 = baseForce * f1Mult; 
-                        else if (p2Dashing && !p1Dashing) f2on1 = baseForce * f2Mult;
-                        else if (p1Dashing && p2Dashing) { f1on2 = baseForce * 1.5; f2on1 = baseForce * 1.5; }
+                        if (p1Dashing && !p2Dashing) f1on2 = baseForce1 * f1Mult; 
+                        else if (p2Dashing && !p1Dashing) f2on1 = baseForce2 * f2Mult;
+                        else if (p1Dashing && p2Dashing) { f1on2 = baseForce1 * 1.5; f2on1 = baseForce2 * 1.5; }
 
                         if (p1.boostEffect > 0) f1on2 *= 3;
                         if (p2.boostEffect > 0) f2on1 *= 3;
@@ -1085,6 +1190,9 @@
             mapSelectPanel.classList.add('hidden');
             selectedMapType = MapTypes[currentMapSelectIndex].id;
             
+            const displayStyle = selectedMapType === 'magma' ? 'block' : 'none';
+            document.querySelectorAll('.magma-setting-group').forEach(el => el.style.display = displayStyle);
+            
             if (isSinglePlayer) {
                 spSettingsPanel.classList.remove('hidden');
             } else {
@@ -1152,6 +1260,18 @@
         const boostCountVal = document.getElementById('boost-count-val');
         boostCountSlider.oninput = (e) => boostCountVal.innerText = e.target.value;
 
+        const magmaBurnSlider = document.getElementById('magma-burn-slider');
+        const magmaBurnVal = document.getElementById('magma-burn-val');
+        magmaBurnSlider.oninput = (e) => magmaBurnVal.innerText = e.target.value;
+
+        const magmaCountSlider = document.getElementById('magma-count-slider');
+        const magmaCountVal = document.getElementById('magma-count-val');
+        magmaCountSlider.oninput = (e) => magmaCountVal.innerText = e.target.value;
+
+        const magmaSizeSlider = document.getElementById('magma-size-slider');
+        const magmaSizeVal = document.getElementById('magma-size-val');
+        magmaSizeSlider.oninput = (e) => magmaSizeVal.innerText = e.target.value;
+
         // 多人參數滑塊連動
         const mpMapSizeSlider = document.getElementById('mp-map-size-slider');
         const mpMapSizeVal = document.getElementById('mp-map-size-val');
@@ -1164,6 +1284,18 @@
         const mpBoostCountSlider = document.getElementById('mp-boost-count-slider');
         const mpBoostCountVal = document.getElementById('mp-boost-count-val');
         mpBoostCountSlider.oninput = (e) => mpBoostCountVal.innerText = e.target.value;
+
+        const mpMagmaBurnSlider = document.getElementById('mp-magma-burn-slider');
+        const mpMagmaBurnVal = document.getElementById('mp-magma-burn-val');
+        mpMagmaBurnSlider.oninput = (e) => mpMagmaBurnVal.innerText = e.target.value;
+
+        const mpMagmaCountSlider = document.getElementById('mp-magma-count-slider');
+        const mpMagmaCountVal = document.getElementById('mp-magma-count-val');
+        mpMagmaCountSlider.oninput = (e) => mpMagmaCountVal.innerText = e.target.value;
+
+        const mpMagmaSizeSlider = document.getElementById('mp-magma-size-slider');
+        const mpMagmaSizeVal = document.getElementById('mp-magma-size-val');
+        mpMagmaSizeSlider.oninput = (e) => mpMagmaSizeVal.innerText = e.target.value;
 
         // 單人設定 -> 下一步 / 返回
         document.getElementById('btn-sp-settings-next').onclick = () => {
@@ -1178,7 +1310,7 @@
 
         function initSinglePlayer() {
             myId = myId || 'SP_PLAYER_' + Math.random().toString(36).substr(2, 5);
-            localGameState = { players: {}, pellets: [], spikes: [], boostPads: [] };
+            localGameState = { players: {}, pellets: [], spikes: [], boostPads: [], magmas: [] };
             
             const pName = document.getElementById('name-input').value.trim() || '玩家1號';
             const pColor = document.getElementById('color-input').value;
@@ -1226,6 +1358,18 @@
                     radius: 25
                 });
             }
+            
+            if (selectedMapType === 'magma') {
+                const magmaCount = parseInt(document.getElementById('magma-count-slider').value) || 0;
+                const magmaBaseSize = parseInt(document.getElementById('magma-size-slider').value) || 100;
+                for(let i=0; i<magmaCount; i++) {
+                    localGameState.magmas.push({
+                        x: (Math.random() - 0.5) * worldSize * 1.5,
+                        z: (Math.random() - 0.5) * worldSize * 1.5,
+                        radius: magmaBaseSize * (0.6 + Math.random() * 0.8)
+                    });
+                }
+            }
 
             spGameLoopInterval = setInterval(singlePlayerLoop, 30);
             startGameUI();
@@ -1247,12 +1391,14 @@
                 mapSize: parseInt(mpMapSizeSlider.value),
                 spikeCount: parseInt(mpSpikeCountSlider.value),
                 boostCount: parseInt(mpBoostCountSlider.value),
-                mapType: selectedMapType // 傳送地圖類型給後端
+                magmaCount: parseInt(mpMagmaCountSlider.value),
+                magmaSize: parseInt(mpMagmaSizeSlider.value),
+                mapType: selectedMapType 
             };
             socket.emit('create_room', config);
             
-            if (selectedMapType === 'conveyor') {
-                showToast('注意：多人模式下輸送帶功能需伺服器端支援物理計算才可生效。');
+            if (selectedMapType === 'conveyor' || selectedMapType === 'ice' || selectedMapType === 'magma') {
+                showToast('注意：多人模式下特殊地圖功能需伺服器端支援物理計算才可生效。');
             }
         };
 
@@ -1650,6 +1796,24 @@
                 }
                 for (let i = 0; i < gameState.boostPads.length; i++) {
                     meshes.boostPads[i].position.set(gameState.boostPads[i].x, 0.5, gameState.boostPads[i].z);
+                }
+            }
+            
+            if (gameState.magmas) {
+                if (gameState.magmas.length > 0) {
+                    magmaMat.emissiveIntensity = 0.3 + Math.sin(Date.now() * 0.003) * 0.2;
+                }
+                while (meshes.magmas.length < gameState.magmas.length) {
+                    const mesh = new THREE.Mesh(magmaGeo, magmaMat);
+                    mesh.position.y = 0.2; mesh.receiveShadow = true;
+                    scene.add(mesh); meshes.magmas.push(mesh);
+                }
+                while (meshes.magmas.length > gameState.magmas.length) {
+                    const mesh = meshes.magmas.pop(); scene.remove(mesh);
+                }
+                for (let i = 0; i < gameState.magmas.length; i++) {
+                    meshes.magmas[i].position.set(gameState.magmas[i].x, 0.2, gameState.magmas[i].z);
+                    meshes.magmas[i].scale.set(gameState.magmas[i].radius, 1, gameState.magmas[i].radius);
                 }
             }
 
