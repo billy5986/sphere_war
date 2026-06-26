@@ -36,6 +36,23 @@ function spawnBoostPad(worldSize) {
         radius: 25
     };
 }
+// 產生岩漿
+function spawnMagma(worldSize, magmaBaseSize) {
+    return {
+        x: (Math.random() - 0.5) * worldSize * 1.5,
+        z: (Math.random() - 0.5) * worldSize * 1.5,
+        radius: magmaBaseSize * (0.6 + Math.random() * 0.8)
+    };
+}
+
+const CONVEYOR_CYCLE_MS = 30000;
+const CONVEYOR_FORCE = 0.5;
+const conveyorDirections = [
+    { x: 1, z: 0 },
+    { x: 0, z: 1 },
+    { x: -1, z: 0 },
+    { x: 0, z: -1 }
+];
 
 io.on('connection', (socket) => {
     console.log('新玩家連線:', socket.id);
@@ -47,26 +64,49 @@ io.on('connection', (socket) => {
         
         // 解析參數，若未提供則使用預設值
         const mapSize = config.mapSize || 800;
+        const pelletCount = config.pelletCount !== undefined ? config.pelletCount : 50;
         const spikeCount = config.spikeCount !== undefined ? config.spikeCount : 15;
         const boostCount = config.boostCount !== undefined ? config.boostCount : 8;
+        const magmaCount = config.magmaCount !== undefined ? config.magmaCount : 0;
+        const magmaSize = config.magmaSize !== undefined ? config.magmaSize : 100;
+        const baseImpactForce = config.baseImpactForce !== undefined ? config.baseImpactForce : 15;
+        const conveyorForce = config.conveyorForce !== undefined ? config.conveyorForce : 0.5;
+        const conveyorSwitchTime = config.conveyorSwitchTime !== undefined ? config.conveyorSwitchTime : 30;
+        const iceFriction = config.iceFriction !== undefined ? config.iceFriction : 0.97;
+        const spikeDamage = config.spikeDamage !== undefined ? config.spikeDamage : 20;
+        const globalReverse = config.globalReverse || false;
+        const boostForce = config.boostForce !== undefined ? config.boostForce : 45;
+        const mapType = config.mapType || 'normal';
         
-        // 依照地圖大小動態計算光點數量
-        const maxPellets = 50 + Math.floor(mapSize / 100);
+        // 依照設定決定光點數量
+        const maxPellets = pelletCount;
 
         rooms[roomId] = { 
             players: {}, 
             pellets: [], 
             spikes: [], 
             boostPads: [], 
+            magmas: [],
             usedColors: [], 
             usedNames: [],
             worldSize: mapSize,      // 將地圖大小存入該房間專屬設定
-            maxPellets: maxPellets   // 該房間最大光點數量
+            maxPellets: maxPellets,  // 該房間最大光點數量
+            mapType: mapType,
+            baseImpactForce: baseImpactForce,
+            conveyorForce: conveyorForce,
+            conveyorSwitchTime: conveyorSwitchTime,
+            iceFriction: iceFriction,
+            spikeDamage: spikeDamage,
+            globalReverse: globalReverse,
+            boostForce: boostForce,
+            currentConveyorDirIndex: 0,
+            lastConveyorSwitchTime: Date.now()
         };
         
         for (let i = 0; i < maxPellets; i++) rooms[roomId].pellets.push(spawnPellet(mapSize));
         for (let i = 0; i < spikeCount; i++) rooms[roomId].spikes.push(spawnSpike(mapSize));
         for (let i = 0; i < boostCount; i++) rooms[roomId].boostPads.push(spawnBoostPad(mapSize)); 
+        for (let i = 0; i < magmaCount; i++) rooms[roomId].magmas.push(spawnMagma(mapSize, magmaSize));
 
         socket.join(roomId);
         currentRoom = roomId;
@@ -112,6 +152,7 @@ io.on('connection', (socket) => {
             x: (Math.random() - 0.5) * mapSize * 0.8, y: 20, z: (Math.random() - 0.5) * mapSize * 0.8,
             vx: 0, vy: 0, vz: 0, boostCooldown: 0, boostEffect: 0, damageEffect: 0,
             radius: 20, color: color, name: name,
+            inMagma: false, magmaBurnTimer: 0, isGrounded: true,
             input: { dx: 0, dz: 0, jump: false, dash: false }
         };
 
@@ -145,7 +186,28 @@ setInterval(() => {
         let pellets = room.pellets;
         let spikes = room.spikes;
         let boostPads = room.boostPads;
+        let magmas = room.magmas;
         let worldSize = room.worldSize;
+        let mapType = room.mapType;
+        let now = Date.now();
+
+        let currentConveyorForce = { x: 0, z: 0 };
+        let conveyorIsWarning = false;
+        if (mapType === 'conveyor') {
+            let switchMs = (room.conveyorSwitchTime || 30) * 1000;
+            if (now - room.lastConveyorSwitchTime >= switchMs) {
+                let nextDir;
+                do { nextDir = Math.floor(Math.random() * 4); } while (nextDir === room.currentConveyorDirIndex);
+                room.currentConveyorDirIndex = nextDir;
+                room.lastConveyorSwitchTime = now;
+            } else if (now - room.lastConveyorSwitchTime >= switchMs - 3000) {
+                conveyorIsWarning = true;
+            }
+            let dirObj = conveyorDirections[room.currentConveyorDirIndex];
+            let cForce = room.conveyorForce || 0.5;
+            currentConveyorForce.x = dirObj.x * cForce;
+            currentConveyorForce.z = dirObj.z * cForce;
+        }
 
         // 1. 移動與物理
         for (let id in players) {
@@ -160,6 +222,14 @@ setInterval(() => {
             if (p.boostCooldown > 0) p.boostCooldown--;
             if (p.boostEffect > 0) p.boostEffect--;
             if (p.damageEffect > 0) p.damageEffect--;
+            p.inMagma = false;
+
+            for(let i=0; i<magmas.length; i++) {
+                if (Math.hypot(p.x - magmas[i].x, p.z - magmas[i].z) < magmas[i].radius) {
+                    p.inMagma = true;
+                    p.magmaBurnTimer = 5 * 33; 
+                }
+            }
 
             let input = p.input;
 
@@ -184,49 +254,79 @@ setInterval(() => {
                             bz = Math.sin(angle);
                         }
                         
-                        p.vx += bx * 45; 
-                        p.vz += bz * 45;
+                        let bForce = room.boostForce || 45;
+                        p.vx += bx * bForce; 
+                        p.vz += bz * bForce;
                         p.boostCooldown = 90; 
                         p.boostEffect = 15;   
                     }
                 }
             }
 
-            let isDashing = input.dash && p.radius > 20;
+            let isDashing = input.dash && p.radius > 20 && !p.inMagma;
             let sizeFactor = Math.max(0, p.radius - 20); 
             let baseSpeed = Math.max(3, 8 - Math.sqrt(sizeFactor) * 0.41); 
             let dashMult = Math.max(1.2, 2.0 - sizeFactor * 0.0053); 
             let dashCost = 0.05 + sizeFactor * 0.0026;
 
             let speed = isDashing ? baseSpeed * dashMult : baseSpeed;
+            if (p.inMagma) speed *= 0.4;
 
             if (isDashing) {
                 p.radius -= dashCost; 
                 if (p.radius < 20) p.radius = 20; 
             }
+            
+            if (p.magmaBurnTimer > 0) {
+                p.magmaBurnTimer--;
+                p.radius -= 1/33;
+                if (p.radius < 20) p.radius = 20;
+                p.damageEffect = Math.max(p.damageEffect, 2);
+            }
 
-            p.x += input.dx * speed;
-            p.z += input.dz * speed;
+            let isIce = mapType === 'ice';
+            let baseFriction = 0.85;
+            let iceFriction = room.iceFriction || 0.97;
+            let friction = (isIce && p.isGrounded) ? iceFriction : baseFriction;
 
-            p.x += p.vx;
-            p.z += p.vz;
+            let playerMoveX, playerMoveZ;
+            if (isIce) {
+                let accelRate = p.isGrounded ? 0.04 : 0.01;
+                p.vx += input.dx * (speed * accelRate);
+                p.vz += input.dz * (speed * accelRate);
+                playerMoveX = p.vx;
+                playerMoveZ = p.vz;
+            } else {
+                playerMoveX = input.dx * speed + p.vx;
+                playerMoveZ = input.dz * speed + p.vz;
+            }
 
-            p.vx *= 0.85; 
-            p.vz *= 0.85;
+            let environmentForceX = 0, environmentForceZ = 0;
+            if (mapType === 'conveyor') {
+                let forceMulti = p.isGrounded ? 1.0 : 0.3;
+                environmentForceX = currentConveyorForce.x * forceMulti;
+                environmentForceZ = currentConveyorForce.z * forceMulti;
+            }
+
+            p.x += playerMoveX + environmentForceX;
+            p.z += playerMoveZ + environmentForceZ;
+
+            p.vx *= friction; 
+            p.vz *= friction;
             if (Math.abs(p.vx) < 0.1) p.vx = 0;
             if (Math.abs(p.vz) < 0.1) p.vz = 0;
 
             p.vy -= 1.5; 
             p.y += p.vy;
+            p.isGrounded = false;
 
-            let isGrounded = false;
             if (Math.abs(p.x) <= worldSize && Math.abs(p.z) <= worldSize) {
                 if (p.y <= p.radius) {
-                    p.y = p.radius; p.vy = 0; isGrounded = true;
+                    p.y = p.radius; p.vy = 0; p.isGrounded = true;
                 }
             }
 
-            if (input.jump && isGrounded) {
+            if (input.jump && p.isGrounded) {
                 p.vy = 25; input.jump = false; 
             }
         }
@@ -263,10 +363,9 @@ setInterval(() => {
                     p.z += nz * overlap;
 
                     if (p.radius > 40) {
-                        let energy = p.radius - 20;
-                        let lostEnergy = energy * 0.2; 
+                        let dmgPercent = room.spikeDamage !== undefined ? room.spikeDamage : 20;
+                        let lostEnergy = (p.radius - 20) * (dmgPercent / 100);
                         p.radius -= lostEnergy;
-                        
                         p.vy = 20; 
                         p.vx += nx * 35; 
                         p.vz += nz * 35;
@@ -307,20 +406,27 @@ setInterval(() => {
                     let hnx = hDist > 0 ? dx / hDist : 1;
                     let hnz = hDist > 0 ? dz / hDist : 0;
 
-                    let baseForce = 15;
+                    let baseForce1 = room.baseImpactForce || 15;
+                    let baseForce2 = room.baseImpactForce || 15;
+
+                    if (room.mapType === 'ice') {
+                        baseForce1 += Math.hypot(p1.vx, p1.vz) * 0.8;
+                        baseForce2 += Math.hypot(p2.vx, p2.vz) * 0.8;
+                    }
+
                     let p1Dashing = p1.input.dash && p1.radius > 20;
                     let p2Dashing = p2.input.dash && p2.radius > 20;
 
-                    let f1on2 = baseForce;
-                    let f2on1 = baseForce;
+                    let f1on2 = baseForce1;
+                    let f2on1 = baseForce2;
 
                     if (p1Dashing && !p2Dashing) {
-                        f1on2 = baseForce * 2; 
+                        f1on2 = baseForce1 * 2; 
                     } else if (p2Dashing && !p1Dashing) {
-                        f2on1 = baseForce * 2; 
+                        f2on1 = baseForce2 * 2; 
                     } else if (p1Dashing && p2Dashing) {
-                        f1on2 = baseForce * 1.5;
-                        f2on1 = baseForce * 1.5;
+                        f1on2 = baseForce1 * 1.5;
+                        f2on1 = baseForce2 * 1.5;
                     }
 
                     if (p1.boostEffect > 0) f1on2 *= 3;
@@ -353,11 +459,17 @@ setInterval(() => {
                 io.to(id).emit('you_lost', '你掉入虛空了！復活中...');
                 p.x = (Math.random() - 0.5) * worldSize; p.z = (Math.random() - 0.5) * worldSize;
                 p.y = 100; p.vy = 0; p.radius = 20; 
-                p.vx = 0; p.vz = 0; p.boostCooldown = 0; p.boostEffect = 0; p.damageEffect = 0; 
+                p.vx = 0; p.vz = 0; p.boostCooldown = 0; p.boostEffect = 0; p.damageEffect = 0; p.magmaBurnTimer = 0; p.inMagma = false;
             }
         }
 
-        io.to(roomId).emit('update_game_state', { players, pellets, spikes, boostPads });
+        io.to(roomId).emit('update_game_state', { 
+            players, pellets, spikes, boostPads, magmas: room.magmas, 
+            mapType: room.mapType, 
+            currentConveyorDirIndex: room.currentConveyorDirIndex,
+            conveyorIsWarning: conveyorIsWarning,
+            globalReverse: room.globalReverse
+        });
     }
 }, 30);
 
