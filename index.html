@@ -1454,7 +1454,7 @@
             
             localGameState.baseImpactForce = parseInt(document.getElementById('base-force-slider').value) || 15;
             localGameState.boostForce = parseInt(document.getElementById('boost-power-slider').value) || 45;
-            localGameState.spikeDamage = parseInt(document.getElementById('spike-damage-slider').value) !== NaN ? parseInt(document.getElementById('spike-damage-slider').value) : 20;
+            localGameState.spikeDamage = !isNaN(parseInt(document.getElementById('spike-damage-slider').value)) ? parseInt(document.getElementById('spike-damage-slider').value) : 20;
             localGameState.globalReverse = document.getElementById('global-reverse-select').value === 'true';
             localGameState.conveyorForce = parseFloat(document.getElementById('conveyor-force-slider').value) || 0.5;
             localGameState.conveyorSwitchTime = parseInt(document.getElementById('conveyor-time-slider').value) || 30;
@@ -1540,7 +1540,7 @@
                 mapSize: parseInt(mpMapSizeSlider.value),
                 pelletCount: parseInt(mpPelletCountSlider.value),
                 spikeCount: parseInt(mpSpikeCountSlider.value),
-                spikeDamage: parseInt(mpSpikeDamageSlider.value) !== NaN ? parseInt(mpSpikeDamageSlider.value) : 20,
+                spikeDamage: !isNaN(parseInt(mpSpikeDamageSlider.value)) ? parseInt(mpSpikeDamageSlider.value) : 20,
                 boostCount: parseInt(mpBoostCountSlider.value),
                 boostForce: parseInt(mpBoostPowerSlider.value),
                 globalReverse: document.getElementById('mp-global-reverse-select').value === 'true',
@@ -1550,13 +1550,10 @@
                 iceFriction: parseFloat(mpIceFrictionSlider.value),
                 magmaCount: parseInt(mpMagmaCountSlider.value),
                 magmaSize: parseInt(mpMagmaSizeSlider.value),
+                magmaBurn: parseInt(mpMagmaBurnSlider.value) !== undefined ? parseInt(mpMagmaBurnSlider.value) : 5,
                 mapType: selectedMapType 
             };
             socket.emit('create_room', config);
-            
-            if (selectedMapType === 'conveyor' || selectedMapType === 'ice' || selectedMapType === 'magma') {
-                showToast('注意：多人模式下特殊地圖功能需伺服器端支援物理計算才可生效。');
-            }
         };
 
         document.getElementById('btn-mp-settings-back').onclick = () => {
